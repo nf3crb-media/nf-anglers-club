@@ -20,6 +20,7 @@ export function useFeed(discFilter = "all") {
           "id, fish, weight, disc, gear, likes, dibuat_at, photo_url, member:member_id(nama, username), spot:spot_id(nama, kota)"
         )
         .eq("status", "tayang")
+        .eq("verification_status", "verified")
         .order("dibuat_at", { ascending: false })
         .limit(30);
 

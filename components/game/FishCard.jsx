@@ -5,13 +5,12 @@ import SectionTitle from "@/components/ui/SectionTitle";
 import {
   C,
   DISC,
-  FISH_AVG,
   NF_BAITS,
   RARITY,
   RARITY_ORDER,
 } from "@/lib/constants";
 import { NF_LOGO_LG } from "@/lib/nf-logos";
-import { calcRarity } from "@/lib/rarity";
+import { calcRarityFromRatio } from "@/lib/rarity-core";
 import { SFX, haptic } from "@/lib/sound";
 import Confetti from "@/components/game/Confetti";
 import { useAuth } from "@/hooks/useAuth";
@@ -30,36 +29,66 @@ export default function FishCardGenerator() {
   const canvasRef = useRef(null);
   const { member } = useAuth();
   const [img, setImg] = useState(null);
+  const [photoDataUrl, setPhotoDataUrl] = useState(null);
+  const [speciesList, setSpeciesList] = useState([]);
+  const [savedCatch, setSavedCatch] = useState(null);
+  const [resultRarity, setResultRarity] = useState(null);
   const [step, setStep] = useState("form");
   const [showConfetti, setShowConfetti] = useState(false);
   const [showFlash, setShowFlash] = useState(false);
   const [aiLog, setAiLog] = useState([]);
   const [form, setForm] = useState({
     name: "",
-    fish: "Ikan Mas",
+    fish_species_id: "",
     weight: "2.4",
-    disc: "🎯 Galatama",
+    discId: "galatama",
     baitSel: NF_BAITS[0],
     baitCustom: "",
     fromComp: false,
   });
 
+  useEffect(() => {
+    fetch("/api/fish-species")
+      .then((r) => r.json())
+      .then((data) => {
+        if (data.ok && data.species?.length) {
+          setSpeciesList(data.species);
+          setForm((f) =>
+            f.fish_species_id ? f : { ...f, fish_species_id: data.species[0].id }
+          );
+        }
+      })
+      .catch(() => {});
+  }, []);
+
   const set = (k, v) => setForm((f) => ({ ...f, [k]: v }));
   const displayName = form.name || member?.nama || "Angler";
+  const selectedSpecies =
+    speciesList.find((s) => s.id === form.fish_species_id) || speciesList[0];
+  const fishName = selectedSpecies?.nama || "Ikan";
+  const discMeta = DISC.find((d) => d.id === form.discId) || DISC[0];
+  const discLabel = `${discMeta.icon} ${discMeta.label}`;
   const getBait = () =>
     form.baitSel === "__custom" ? form.baitCustom || "-" : form.baitSel;
   const usesNF = () => getBait().toUpperCase().includes("NF");
-  const rarity = calcRarity(form.fish, form.weight, usesNF(), form.fromComp);
-  const R = RARITY[rarity.key];
+  const previewRarity = calcRarityFromRatio(
+    form.weight,
+    selectedSpecies?.average_weight_kg || 1,
+    form.fromComp
+  );
+  const activeRarity = resultRarity || previewRarity;
+  const R = RARITY[activeRarity.key];
 
   const pickFile = (e) => {
     const f = e.target.files?.[0];
     if (!f) return;
     const reader = new FileReader();
     reader.onload = (ev) => {
+      const dataUrl = ev.target.result;
+      setPhotoDataUrl(dataUrl);
       const i = new Image();
       i.onload = () => setImg(i);
-      i.src = ev.target.result;
+      i.src = dataUrl;
     };
     reader.readAsDataURL(f);
   };
@@ -149,7 +178,7 @@ export default function FishCardGenerator() {
     ctx.textBaseline = "middle";
     ctx.fillStyle = C.ink;
     ctx.font = "900 62px system-ui";
-    ctx.fillText((form.fish || "IKAN").toUpperCase(), pad, 84);
+    ctx.fillText((fishName || "IKAN").toUpperCase(), pad, 84);
 
     ctx.font = "900 34px system-ui";
     const rl = "◆ " + R.label;
@@ -191,9 +220,9 @@ export default function FishCardGenerator() {
       ctx.fillText(val, W - pad - 30 - vw, yy);
     };
     stat("🎣 Pemancing", displayName, sy + 56);
-    stat("📊 Disiplin", form.disc, sy + 108);
+    stat("📊 Disiplin", discLabel, sy + 108);
     stat("🧪 Umpan", getBait(), sy + 160, usesNF() ? C.glow2 : C.fog);
-    stat("⭐ Kelangkaan", rarity.ratio + "× rata-rata", sy + 212, acc);
+    stat("⭐ Kelangkaan", activeRarity.ratio + "× rata-rata", sy + 212, acc);
 
     drawNFLogo(ctx, W - pad - 110, H - 150, 96);
     ctx.fillStyle = C.fog;
@@ -204,27 +233,64 @@ export default function FishCardGenerator() {
     ctx.fillText("NF ANGLERS CLUB", pad, H - 54);
   };
 
-  const runAI = () => {
-    if (!img) {
+  const runAI = async () => {
+    if (!img || !photoDataUrl) {
       alert("Upload foto dulu ya 🎣");
       return;
     }
+    if (!form.fish_species_id) {
+      alert("Pilih spesies ikan dulu.");
+      return;
+    }
+
     SFX.cast();
     haptic(15);
     setStep("processing");
     setAiLog([]);
+    setSavedCatch(null);
+    setResultRarity(null);
+
+    let catchData;
+    try {
+      const res = await fetch("/api/catch", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          fish_species_id: form.fish_species_id,
+          weight: form.weight,
+          disc: form.discId,
+          bait: getBait(),
+          gear: getBait(),
+          uses_nf: usesNF(),
+          from_comp: form.fromComp,
+          photo_base64: photoDataUrl,
+        }),
+      });
+      const data = await res.json();
+      if (!data.ok) throw new Error(data.msg || "Gagal menyimpan tangkapan.");
+      catchData = data;
+      setSavedCatch(data);
+      setResultRarity(data.rarity);
+    } catch (err) {
+      alert(err.message || "Gagal menyimpan tangkapan.");
+      setStep("form");
+      return;
+    }
+
+    const savedRarity = catchData.rarity;
+    const rarityKey = savedRarity.key;
 
     const steps = [
       { t: "🔍 Validasi foto — mendeteksi objek ikan...", d: 700 },
       { t: "✓ Foto valid: terdeteksi ikan, bukan duplikat", d: 600, ok: true },
       {
-        t: `⚖️ Hitung kelangkaan — ${form.fish} ${form.weight}kg (${rarity.ratio}× rata-rata)...`,
+        t: `⚖️ Hitung kelangkaan server — ${fishName} ${form.weight}kg (${savedRarity.ratio}× rata-rata)...`,
         d: 800,
       },
       {
         t: usesNF()
-          ? "✓ Pakai produk NF → bonus kelangkaan +1 tingkat"
-          : "• Bukan produk NF → tanpa bonus",
+          ? "✓ Pakai produk NF → bonus poin aktivitas (bukan tier rarity)"
+          : "• Bukan produk NF",
         d: 600,
         ok: usesNF(),
       },
@@ -235,13 +301,13 @@ export default function FishCardGenerator() {
         d: 600,
         ok: form.fromComp,
       },
-      { t: `🏆 Hasil: kartu tingkat ${R.label}`, d: 700, final: true },
+      { t: `🏆 Hasil: kartu tingkat ${RARITY[rarityKey].label}`, d: 700, final: true },
       {
-        t: form.fromComp
+        t: catchData.needs_review
           ? "⏳ Status tayang: MENUNGGU VERIFIKASI CS"
           : "✅ Status tayang: LAYAK TAMPIL di feed",
         d: 600,
-        ok: !form.fromComp,
+        ok: !catchData.needs_review,
       },
     ];
 
@@ -249,16 +315,16 @@ export default function FishCardGenerator() {
     const next = () => {
       if (i >= steps.length) {
         setStep("result");
-        const isHigh = rarity.key === "legendary" || rarity.key === "epic";
+        const isHigh = rarityKey === "legendary" || rarityKey === "epic";
         if (isHigh) {
           setShowConfetti(true);
-          if (rarity.key === "legendary") {
+          if (rarityKey === "legendary") {
             setShowFlash(true);
             setTimeout(() => setShowFlash(false), 650);
           }
           SFX.legendary();
           haptic(
-            rarity.key === "legendary" ? [40, 60, 40, 60, 100] : [30, 50, 30, 50, 80]
+            rarityKey === "legendary" ? [40, 60, 40, 60, 100] : [30, 50, 30, 50, 80]
           );
         } else {
           SFX.reveal();
@@ -333,9 +399,8 @@ export default function FishCardGenerator() {
     <div>
       <SectionTitle eyebrow="// PENCAPAIAN KOLEKSI" title="🃏 Fish Card" />
       <p style={{ color: C.fog, fontSize: 13, marginTop: 6 }}>
-        Abadikan tangkapanmu jadi kartu koleksi. Makin langka ikannya, makin
-        tinggi tingkat kartunya — dari Common sampai Legendary. Pakai produk NF
-        dapat bonus kelangkaan!
+        Abadikan tangkapanmu jadi kartu koleksi. Kelangkaan dihitung server
+        dari berat vs rata-rata spesies — produk NF bonus poin, bukan tier kartu.
       </p>
 
       <div style={{ display: "flex", gap: 5, marginTop: 12 }}>
@@ -410,11 +475,13 @@ export default function FishCardGenerator() {
             <div style={{ display: "flex", gap: 10 }}>
               <select
                 style={inp}
-                value={form.fish}
-                onChange={(e) => set("fish", e.target.value)}
+                value={form.fish_species_id}
+                onChange={(e) => set("fish_species_id", e.target.value)}
               >
-                {Object.keys(FISH_AVG).map((f) => (
-                  <option key={f}>{f}</option>
+                {speciesList.map((s) => (
+                  <option key={s.id} value={s.id}>
+                    {s.nama}
+                  </option>
                 ))}
               </select>
               <input
@@ -426,11 +493,11 @@ export default function FishCardGenerator() {
             </div>
             <select
               style={inp}
-              value={form.disc}
-              onChange={(e) => set("disc", e.target.value)}
+              value={form.discId}
+              onChange={(e) => set("discId", e.target.value)}
             >
               {DISC.map((d) => (
-                <option key={d.id} value={`${d.icon} ${d.label}`}>
+                <option key={d.id} value={d.id}>
                   {d.icon} {d.label}
                 </option>
               ))}
@@ -496,8 +563,8 @@ export default function FishCardGenerator() {
               ◆ {R.label}
             </div>
             <div style={{ fontSize: 11.5, color: C.fog, marginTop: 3 }}>
-              {rarity.ratio}× berat rata-rata {form.fish}{" "}
-              {usesNF() && "· +bonus NF 🎣"}
+              {previewRarity.ratio}× berat rata-rata {fishName}
+              {usesNF() && " · +bonus poin NF 🎣"}
             </div>
           </div>
           <button
@@ -549,7 +616,7 @@ export default function FishCardGenerator() {
                 style={{
                   fontSize: 13,
                   color: s.final
-                    ? RARITY[rarity.key].color
+                    ? RARITY[activeRarity.key].color
                     : s.ok
                       ? C.glow2
                       : C.ink,
@@ -569,9 +636,9 @@ export default function FishCardGenerator() {
         <div>
           <Confetti
             active={showConfetti}
-            intensity={rarity.key === "legendary" ? "legendary" : "epic"}
+            intensity={activeRarity.key === "legendary" ? "legendary" : "epic"}
             colors={
-              rarity.key === "legendary"
+              activeRarity.key === "legendary"
                 ? ["#ffb43c", "#ffd700", "#c8ff3c", "#ff6b35", "#fff"]
                 : undefined
             }
@@ -591,7 +658,7 @@ export default function FishCardGenerator() {
           <div style={{ textAlign: "center", marginTop: 14, marginBottom: 6 }}>
             <div
               className={
-                rarity.key === "epic" || rarity.key === "legendary"
+                activeRarity.key === "epic" || activeRarity.key === "legendary"
                   ? "legendary-badge"
                   : undefined
               }
@@ -607,15 +674,15 @@ export default function FishCardGenerator() {
                 background: R.color + "14",
               }}
             >
-              {rarity.key === "legendary"
+              {activeRarity.key === "legendary"
                 ? "🌟 LEGENDARY CATCH! 🌟"
-                : rarity.key === "epic"
+                : activeRarity.key === "epic"
                   ? "✨ EPIC CATCH! ✨"
                   : `KARTU ${R.label} DIDAPAT`}
             </div>
           </div>
           <div
-            className={rarity.key === "legendary" ? "legendary-shake" : undefined}
+            className={activeRarity.key === "legendary" ? "legendary-shake" : undefined}
             style={{ position: "relative" }}
           >
             <div className="card-reveal">
@@ -626,7 +693,7 @@ export default function FishCardGenerator() {
                 style={{
                   width: "100%",
                   borderRadius: 16,
-                  boxShadow: `0 20px 70px -16px ${R.glow}${rarity.key === "legendary" ? "cc" : "88"}`,
+                  boxShadow: `0 20px 70px -16px ${R.glow}${activeRarity.key === "legendary" ? "cc" : "88"}`,
                   position: "relative",
                   zIndex: 1,
                 }}
@@ -641,9 +708,16 @@ export default function FishCardGenerator() {
               color: C.fog,
             }}
           >
-            {form.fromComp
-              ? "⏳ Kartu lomba menunggu verifikasi CS sebelum tayang publik"
-              : "✅ Kartu layak tampil & otomatis masuk Fishdex-mu"}
+            {savedCatch?.needs_review
+              ? "⏳ Kartu menunggu verifikasi CS sebelum tayang publik"
+              : savedCatch?.rewards
+                ? `✅ +${savedCatch.rewards.xp} XP · +${savedCatch.rewards.aktivitas_poin} poin aktivitas · masuk Fishdex`
+                : "✅ Kartu layak tampil & otomatis masuk Fishdex-mu"}
+            {savedCatch?.fish_card?.serial_number && (
+              <div style={{ marginTop: 4, fontSize: 11, color: C.glow2 }}>
+                Serial: {savedCatch.fish_card.serial_number}
+              </div>
+            )}
           </div>
           <div style={{ display: "flex", gap: 10, marginTop: 12 }}>
             <button
@@ -686,6 +760,8 @@ export default function FishCardGenerator() {
               setAiLog([]);
               setShowConfetti(false);
               setShowFlash(false);
+              setSavedCatch(null);
+              setResultRarity(null);
             }}
             style={{
               width: "100%",

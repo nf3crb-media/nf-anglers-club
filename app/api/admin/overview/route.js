@@ -41,13 +41,17 @@ export async function GET(req) {
 
   try {
     const supabase = createServiceClient();
-    const [{ data: pending }, { data: recentKodes }, { count: memberCount }] =
+    const [{ data: pending }, { data: pendingCatch }, { data: recentKodes }, { count: memberCount }] =
       await Promise.all([
         supabase
           .from("strike_juara")
           .select("*, member:member_id(nama, wa_number)")
           .eq("status", "pending")
           .order("dibuat_at", { ascending: true }),
+        supabase
+          .from("tangkapan")
+          .select("id")
+          .eq("verification_status", "pending"),
         supabase
           .from("kode_unik")
           .select("kode, batch, produk, status, dibuat_at")
@@ -66,6 +70,7 @@ export async function GET(req) {
       recent_kodes: recentKodes || [],
       stats: {
         pending_strikes: pending?.length || 0,
+        pending_tangkapan: pendingCatch?.length || 0,
         total_members: memberCount ?? 0,
         unused_kodes: unusedKodes,
       },

@@ -40,6 +40,47 @@ function CheckEmailContent() {
         <br />
         Cek folder spam jika belum muncul.
       </p>
+
+      {typeof window !== "undefined" &&
+        (window.location.hostname === "localhost" ||
+          window.location.hostname === "127.0.0.1") && (
+          <div
+            style={{
+              marginTop: 20,
+              padding: "14px 16px",
+              borderRadius: 12,
+              background: "rgba(255,180,60,.08)",
+              border: "1px solid rgba(255,180,60,.35)",
+              textAlign: "left",
+              fontSize: 12,
+              lineHeight: 1.65,
+              color: C.fog,
+            }}
+          >
+            <b style={{ color: C.amber }}>Mode lokal (belum deploy)</b>
+            <br />
+            Link email hanya jalan di komputer yang sama. Buka email di PC ini,
+            lalu <b style={{ color: C.ink }}>salin-tempel</b> seluruh URL link
+            ke browser (harus{" "}
+            <code style={{ color: C.glow2 }}>
+              {window.location.origin}/auth/callback
+            </code>
+            ).
+            <br />
+            <br />
+            Supabase → Auth → URL Configuration: tambahkan redirect{" "}
+            <code style={{ color: C.glow2 }}>
+              {window.location.origin}/auth/callback
+            </code>
+            .
+            <br />
+            <br />
+            Untuk login dari HP / email yang bisa diklik:{" "}
+            <b style={{ color: C.ink }}>deploy dulu</b> ke Vercel (
+            <span style={{ color: C.glow2 }}>nf-anglers-club.vercel.app</span>
+            ).
+          </div>
+        )}
       <Link
         href="/login"
         style={{

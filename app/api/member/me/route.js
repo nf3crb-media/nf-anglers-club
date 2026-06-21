@@ -1,6 +1,8 @@
-import { createServiceClient } from "@/lib/supabase-server";
 import { requireMember, mapMemberPublic } from "@/lib/session";
+import { createServiceClient } from "@/lib/supabase-server";
 import { onboardMember } from "@/lib/services/onboard";
+import { mapGameProgress } from "@/lib/game-progress";
+import { ensureGameProgress } from "@/lib/services/game-progress";
 
 export const dynamic = "force-dynamic";
 
@@ -10,7 +12,13 @@ export async function GET() {
     if (!auth.ok) {
       return Response.json({ ok: false, msg: auth.msg }, { status: auth.status });
     }
-    return Response.json({ ok: true, member: mapMemberPublic(auth.member) });
+    const service = createServiceClient();
+    const progressRow = await ensureGameProgress(service, auth.member.id);
+    return Response.json({
+      ok: true,
+      member: mapMemberPublic(auth.member),
+      game: mapGameProgress(progressRow),
+    });
   } catch (err) {
     console.error("[api/member/me]", err);
     return Response.json({ ok: false, msg: "Gagal memuat profil." }, { status: 500 });

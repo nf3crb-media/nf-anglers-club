@@ -14,6 +14,7 @@ import {
 const TABS = [
   { id: "poin", label: "Tambah Poin" },
   { id: "strike", label: "Verifikasi Strike" },
+  { id: "tangkapan", label: "Verifikasi Tangkapan" },
   { id: "kode", label: "Generator Kode" },
 ];
 
@@ -51,11 +52,18 @@ export default function AdminPage() {
     jumlah: "10",
   });
   const [generatedKodes, setGeneratedKodes] = useState([]);
+  const [pendingTangkapan, setPendingTangkapan] = useState([]);
 
   const loadOverview = useCallback(async () => {
     const res = await adminFetch("/api/admin/overview");
     const data = await res.json();
     if (data.ok) setOverview(data);
+  }, []);
+
+  const loadPendingTangkapan = useCallback(async () => {
+    const res = await adminFetch("/api/admin/tangkapan");
+    const data = await res.json();
+    if (data.ok) setPendingTangkapan(data.pending || []);
   }, []);
 
   useEffect(() => {
@@ -67,7 +75,8 @@ export default function AdminPage() {
   useEffect(() => {
     if (!authed) return;
     loadOverview();
-  }, [authed, loadOverview]);
+    loadPendingTangkapan();
+  }, [authed, loadOverview, loadPendingTangkapan]);
 
   const login = async (e) => {
     e.preventDefault();
@@ -143,6 +152,27 @@ export default function AdminPage() {
       const data = await res.json();
       setMsg(data.msg || (data.ok ? "Berhasil." : "Gagal."));
       if (data.ok) loadOverview();
+    } catch {
+      setMsg("Koneksi gagal.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const verifyTangkapan = async (tangkapanId, action) => {
+    setLoading(true);
+    setMsg("");
+    try {
+      const res = await adminFetch("/api/admin/tangkapan/verify", {
+        method: "POST",
+        body: JSON.stringify({ tangkapan_id: tangkapanId, action }),
+      });
+      const data = await res.json();
+      setMsg(data.msg || (data.ok ? "Berhasil." : "Gagal."));
+      if (data.ok) {
+        loadOverview();
+        loadPendingTangkapan();
+      }
     } catch {
       setMsg("Koneksi gagal.");
     } finally {
@@ -267,8 +297,9 @@ export default function AdminPage() {
         <div style={{ display: "flex", gap: 8, marginBottom: 16 }}>
           {[
             ["👥", stats.total_members, "Member"],
-            ["⏳", stats.pending_strikes, "Pending"],
-            ["🔑", stats.unused_kodes, "Kode aktif"],
+            ["⏳", stats.pending_strikes, "Strike"],
+            ["🃏", stats.pending_tangkapan ?? 0, "Tangkapan"],
+            ["🔑", stats.unused_kodes, "Kode"],
           ].map(([icon, val, label]) => (
             <div
               key={label}
@@ -542,6 +573,96 @@ export default function AdminPage() {
                 </div>
               </div>
             ))
+          )}
+        </div>
+      )}
+
+      {tab === "tangkapan" && (
+        <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+          {pendingTangkapan.length === 0 ? (
+            <p style={{ color: C.fog, fontSize: 13, textAlign: "center" }}>
+              Tidak ada tangkapan menunggu verifikasi.
+            </p>
+          ) : (
+            pendingTangkapan.map((t) => {
+              const card = Array.isArray(t.fish_card) ? t.fish_card[0] : t.fish_card;
+              const member = t.member || {};
+              return (
+                <div
+                  key={t.id}
+                  style={{
+                    padding: 14,
+                    borderRadius: 12,
+                    background: C.deep2,
+                    border: `1px solid ${C.glow2}55`,
+                  }}
+                >
+                  <div style={{ fontWeight: 800, fontSize: 14 }}>
+                    {member.nama || "Angler"}
+                  </div>
+                  <div style={{ fontSize: 11, color: C.fog }}>
+                    {member.wa_number || "—"}
+                  </div>
+                  <div style={{ fontSize: 13, fontWeight: 700, marginTop: 8 }}>
+                    🐟 {t.fish} · {t.weight} kg · {t.disc}
+                  </div>
+                  <div style={{ fontSize: 12, color: C.glow2, marginTop: 4 }}>
+                    ◆ {card?.rarity?.toUpperCase() || "—"}
+                    {card?.serial_number ? ` · ${card.serial_number}` : ""}
+                    {card?.from_comp ? " · Lomba" : ""}
+                    {t.uses_nf ? " · NF" : ""}
+                  </div>
+                  {t.photo_url && (
+                    <a
+                      href={t.photo_url}
+                      target="_blank"
+                      rel="noreferrer"
+                      style={{ fontSize: 11, color: C.glow, display: "block", marginTop: 6 }}
+                    >
+                      Lihat foto tangkapan →
+                    </a>
+                  )}
+                  <div style={{ display: "flex", gap: 8, marginTop: 12 }}>
+                    <button
+                      type="button"
+                      disabled={loading}
+                      onClick={() => verifyTangkapan(t.id, "approve")}
+                      style={{
+                        flex: 1,
+                        padding: 10,
+                        borderRadius: 8,
+                        border: "none",
+                        background: C.glow,
+                        color: C.deep,
+                        fontWeight: 800,
+                        fontSize: 12,
+                        cursor: "pointer",
+                      }}
+                    >
+                      ✓ Setujui
+                    </button>
+                    <button
+                      type="button"
+                      disabled={loading}
+                      onClick={() => verifyTangkapan(t.id, "reject")}
+                      style={{
+                        flex: 1,
+                        padding: 10,
+                        borderRadius: 8,
+                        border: `1px solid ${C.line}`,
+                        background: "transparent",
+                        color: C.fog,
+                        fontWeight: 700,
+                        fontSize: 12,
+                        cursor: "pointer",
+                      }}
+                    >
+                      ✕ Tolak
+                    </button>
+                  </div>
+                </div>
+              );
+            })
           )}
         </div>
       )}

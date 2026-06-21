@@ -9,6 +9,7 @@ export function useAuth() {
   const router = useRouter();
   const [user, setUser] = useState(null);
   const [member, setMember] = useState(null);
+  const [game, setGame] = useState(null);
   const [loading, setLoading] = useState(true);
 
   const loadMember = useCallback(async () => {
@@ -17,14 +18,17 @@ export function useAuth() {
       const data = await res.json();
       if (data.ok && data.member) {
         setMember(data.member);
+        setGame(data.game ?? null);
         return data.member;
       }
       if (data.code === "SIGNUP_INCOMPLETE" || res.status === 403) {
         setMember(null);
+        setGame(null);
       }
       return null;
     } catch {
       setMember(null);
+      setGame(null);
       return null;
     }
   }, []);
@@ -39,6 +43,7 @@ export function useAuth() {
       await loadMember();
     } else {
       setMember(null);
+      setGame(null);
     }
   }, [loadMember]);
 
@@ -55,6 +60,7 @@ export function useAuth() {
         loadMember();
       } else {
         setMember(null);
+        setGame(null);
       }
     });
 
@@ -66,6 +72,7 @@ export function useAuth() {
     await supabase.auth.signOut();
     setUser(null);
     setMember(null);
+    setGame(null);
     router.push("/login");
   }, [router]);
 
@@ -74,7 +81,7 @@ export function useAuth() {
     loadMember();
   }, [loadMember]);
 
-  return { user, member, loading, logout, refresh, login };
+  return { user, member, game, loading, logout, refresh, login };
 }
 
 export function useWelcome() {

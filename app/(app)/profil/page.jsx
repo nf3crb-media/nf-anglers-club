@@ -4,13 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import SectionTitle from "@/components/ui/SectionTitle";
 import { C, DISC, RARITY } from "@/lib/constants";
-import {
-  MASCOTS,
-  BADGES,
-  REWARDS,
-  MOCK_POIN_LOG,
-  MOCK_FISH_CARDS,
-} from "@/lib/mock-profile";
+import { BADGES, REWARDS } from "@/lib/mock-profile";
 import { fishEmoji } from "@/lib/feed-utils";
 import { timeAgo } from "@/lib/time";
 import {
@@ -46,11 +40,13 @@ export default function ProfilPage() {
   const tier = m.tier || "Bronze";
   const nextThreshold = getNextTierThreshold(tier);
   const pct = tierProgress(totalPoin, tier);
-  const poinLog =
-    profile?.poin_log?.length > 0 ? profile.poin_log : MOCK_POIN_LOG;
-  const fishCards =
-    profile?.fish_cards?.length > 0 ? profile.fish_cards : MOCK_FISH_CARDS;
-  const handle = m.username ? `@${m.username}` : member.wa_number;
+  const poinLog = profile?.poin_log || [];
+  const fishCards = profile?.fish_cards || [];
+  const game = profile?.game || null;
+  const fishdex = profile?.fishdex || [];
+  const dexStats = profile?.fishdex_stats || { owned: 0, total: 0 };
+  const xpLog = profile?.xp_log || [];
+  const handle = m.username ? `@${m.username}` : member.wa_number || member.email;
 
   const discIcon = (discId) =>
     DISC.find((d) => d.id === discId)?.icon || "🎣";
@@ -160,6 +156,68 @@ export default function ProfilPage() {
         )}
       </div>
 
+      {game && (
+        <div
+          style={{
+            marginTop: 14,
+            background: C.deep2,
+            border: `1px solid ${C.line}`,
+            borderRadius: 16,
+            padding: 16,
+          }}
+        >
+          <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+            <div style={{ fontSize: 36 }}>{game.rank_icon}</div>
+            <div style={{ flex: 1 }}>
+              <div style={{ fontSize: 11, color: C.fog, letterSpacing: ".08em" }}>
+                LEVEL ANGLER
+              </div>
+              <div style={{ fontWeight: 800, fontSize: 16 }}>
+                Lv.{game.angler_level} · {game.angler_rank}
+              </div>
+              <div style={{ fontSize: 11, color: C.glow2, marginTop: 2 }}>
+                {game.angler_xp.toLocaleString("id-ID")} XP total
+              </div>
+            </div>
+            <div style={{ textAlign: "right", fontSize: 11, color: C.fog }}>
+              Bab {game.story_chapter}
+              <div style={{ color: C.fog, fontSize: 10 }}>story soon</div>
+            </div>
+          </div>
+          <div style={{ marginTop: 14 }}>
+            <div
+              style={{
+                display: "flex",
+                justifyContent: "space-between",
+                fontSize: 10,
+                color: C.fog,
+                marginBottom: 4,
+              }}
+            >
+              <span>{game.xp_in_level} / {game.xp_per_level} XP</span>
+              <span>{game.xp_to_next} XP lagi naik level</span>
+            </div>
+            <div
+              style={{
+                height: 8,
+                background: C.deep,
+                borderRadius: 10,
+                overflow: "hidden",
+              }}
+            >
+              <div
+                style={{
+                  width: `${game.level_pct}%`,
+                  height: "100%",
+                  background: C.glow2,
+                  borderRadius: 10,
+                }}
+              />
+            </div>
+          </div>
+        </div>
+      )}
+
       <Link
         href="/juara"
         onClick={() => SFX.tap()}
@@ -183,6 +241,10 @@ export default function ProfilPage() {
       <SectionTitle eyebrow="// RIWAYAT POIN" title="Dari mana poinmu" mt={22} />
       {loading ? (
         <p style={{ color: C.fog, fontSize: 12, marginTop: 12 }}>Memuat...</p>
+      ) : poinLog.length === 0 ? (
+        <p style={{ color: C.fog, fontSize: 12, marginTop: 12 }}>
+          Belum ada riwayat poin. Belanja NF atau buat Fish Card untuk dapat poin.
+        </p>
       ) : (
         <div
           style={{
@@ -233,9 +295,27 @@ export default function ProfilPage() {
 
       <SectionTitle eyebrow="// DECK FISH CARD" title="Koleksi kartumu" mt={22} />
       <p style={{ color: C.fog, fontSize: 12, marginTop: 6 }}>
-        Tangkapan terbaik yang sudah jadi Fish Card. Buru yang Legendary! (
-        {fishCards.length} kartu)
+        Tangkapan terbaik yang sudah jadi Fish Card ({fishCards.length} kartu)
       </p>
+      {fishCards.length === 0 ? (
+        <Link
+          href="/fishcard"
+          onClick={() => SFX.tap()}
+          style={{
+            display: "block",
+            marginTop: 12,
+            padding: 20,
+            borderRadius: 14,
+            border: `1px dashed ${C.line}`,
+            textAlign: "center",
+            textDecoration: "none",
+            color: C.glow2,
+            fontSize: 13,
+          }}
+        >
+          🃏 Belum ada kartu — buat Fish Card pertama →
+        </Link>
+      ) : (
       <div
         style={{
           display: "flex",
@@ -272,7 +352,7 @@ export default function ProfilPage() {
                   background: `radial-gradient(circle, ${R.color}22, transparent)`,
                 }}
               >
-                {fishEmoji(c.fish)}
+                {fishEmoji(c.fish_name_snapshot || c.fish, c.disc)}
               </div>
               <div style={{ padding: "8px 10px" }}>
                 <div
@@ -286,8 +366,13 @@ export default function ProfilPage() {
                   ◆ {R.label}
                 </div>
                 <div style={{ fontSize: 12, fontWeight: 700, marginTop: 2 }}>
-                  {c.fish}
+                  {c.fish_name_snapshot || c.fish}
                 </div>
+                {c.serial_number && (
+                  <div style={{ fontSize: 8, color: C.fog, marginTop: 1 }}>
+                    {c.serial_number}
+                  </div>
+                )}
                 <div style={{ fontSize: 11, color: C.fog }}>
                   {discIcon(c.disc)} {c.weight} kg
                 </div>
@@ -318,48 +403,105 @@ export default function ProfilPage() {
           </div>
         </div>
       </div>
+      )}
 
-      <SectionTitle eyebrow="// FISHDEX" title="Koleksi maskot" mt={28} />
+      {xpLog.length > 0 && (
+        <>
+          <SectionTitle eyebrow="// XP LOG" title="Progres angler" mt={22} />
+          <div style={{ marginTop: 12, display: "flex", flexDirection: "column", gap: 8 }}>
+            {xpLog.slice(0, 5).map((x) => (
+              <div
+                key={x.id}
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 11,
+                  background: C.deep2,
+                  border: `1px solid ${C.line}`,
+                  borderRadius: 12,
+                  padding: "10px 13px",
+                }}
+              >
+                <span style={{ fontSize: 16 }}>⚡</span>
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontSize: 12, fontWeight: 600 }}>{x.label}</div>
+                  <div style={{ fontSize: 10, color: C.fog }}>
+                    {x.source} · {timeAgo(x.dibuat_at)}
+                  </div>
+                </div>
+                <span style={{ color: C.glow2, fontWeight: 800, fontSize: 13 }}>
+                  +{x.xp} XP
+                </span>
+              </div>
+            ))}
+          </div>
+        </>
+      )}
+
+      <SectionTitle eyebrow="// FISHDEX" title="Koleksi spesies" mt={28} />
       <p style={{ color: C.fog, fontSize: 12, marginTop: 6 }}>
-        Tangkap jenis ikan baru buat unlock maskotnya. Koleksi:{" "}
-        {MASCOTS.filter((x) => x.owned).length}/{MASCOTS.length}
+        Tangkap jenis ikan baru untuk unlock entri Fishdex. Koleksi:{" "}
+        <b style={{ color: C.glow2 }}>
+          {dexStats.owned}/{dexStats.total || fishdex.length}
+        </b>
       </p>
       <div
         style={{
           display: "grid",
-          gridTemplateColumns: "repeat(3,1fr)",
-          gap: 10,
+          gridTemplateColumns: "repeat(4,1fr)",
+          gap: 8,
           marginTop: 12,
+          maxHeight: 360,
+          overflowY: "auto",
+          paddingRight: 4,
         }}
       >
-        {MASCOTS.map((mascot) => (
-          <div
-            key={mascot.name}
-            style={{
-              background: C.deep2,
-              border: `1px solid ${mascot.owned ? C.glow2 : C.line}`,
-              borderRadius: 14,
-              padding: "16px 8px",
-              textAlign: "center",
-              opacity: mascot.owned ? 1 : 0.4,
-            }}
-          >
+        {fishdex.map((entry) => {
+          const sp = entry.species;
+          const emoji = fishEmoji(sp.nama, sp.habitat);
+          return (
             <div
+              key={sp.id}
+              title={entry.owned ? `${sp.nama} · ${entry.total_catches}×` : sp.nama}
               style={{
-                fontSize: 32,
-                filter: mascot.owned
-                  ? "none"
-                  : "grayscale(1) brightness(.5)",
+                background: C.deep2,
+                border: `1px solid ${entry.owned ? C.glow2 : C.line}`,
+                borderRadius: 12,
+                padding: "10px 6px",
+                textAlign: "center",
+                opacity: entry.owned ? 1 : 0.38,
               }}
             >
-              {mascot.owned ? mascot.emoji : "❓"}
+              <div
+                style={{
+                  fontSize: 22,
+                  filter: entry.owned ? "none" : "grayscale(1) brightness(.5)",
+                }}
+              >
+                {entry.owned ? emoji : "❓"}
+              </div>
+              <div
+                style={{
+                  fontSize: 9,
+                  fontWeight: 700,
+                  marginTop: 4,
+                  lineHeight: 1.2,
+                  color: entry.owned ? C.ink : C.fog,
+                }}
+              >
+                {entry.owned ? sp.nama : "???"}
+              </div>
+              {entry.owned && entry.highest_weight_kg != null && (
+                <div style={{ fontSize: 8, color: C.glow2, marginTop: 2 }}>
+                  {Number(entry.highest_weight_kg).toFixed(1)} kg
+                </div>
+              )}
+              {sp.is_boss_available && (
+                <div style={{ fontSize: 7, color: C.amber, marginTop: 2 }}>BOSS</div>
+              )}
             </div>
-            <div style={{ fontSize: 12, fontWeight: 700, marginTop: 4 }}>
-              {mascot.owned ? mascot.name : "???"}
-            </div>
-            <div style={{ fontSize: 10, color: C.fog }}>{mascot.fish}</div>
-          </div>
-        ))}
+          );
+        })}
       </div>
 
       <SectionTitle eyebrow="// PENCAPAIAN" title="Badge" mt={22} />

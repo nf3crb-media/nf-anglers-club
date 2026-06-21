@@ -10,7 +10,7 @@ import { useAuth } from "@/hooks/useAuth";
 export default function AppLayout({ children }) {
   const router = useRouter();
   const pathname = usePathname();
-  const { member, loading } = useAuth();
+  const { member, game, loading } = useAuth();
 
   useEffect(() => {
     if (!loading && !member) {
@@ -61,17 +61,34 @@ export default function AppLayout({ children }) {
         >
           <NFLogo size={30} /> Anglers Club
         </div>
-        <div
-          style={{
-            fontSize: 12,
-            color: C.glow,
-            background: "rgba(200,255,60,.06)",
-            border: `1px solid ${C.line}`,
-            padding: "5px 10px",
-            borderRadius: 20,
-          }}
-        >
-          ⚡ {totalPoin.toLocaleString("id-ID")} poin
+        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          {game && (
+            <div
+              style={{
+                fontSize: 11,
+                color: C.glow2,
+                background: "rgba(92,224,160,.06)",
+                border: `1px solid ${C.line}`,
+                padding: "5px 10px",
+                borderRadius: 20,
+                whiteSpace: "nowrap",
+              }}
+            >
+              {game.rank_icon} Lv.{game.angler_level}
+            </div>
+          )}
+          <div
+            style={{
+              fontSize: 12,
+              color: C.glow,
+              background: "rgba(200,255,60,.06)",
+              border: `1px solid ${C.line}`,
+              padding: "5px 10px",
+              borderRadius: 20,
+            }}
+          >
+            ⚡ {totalPoin.toLocaleString("id-ID")} poin
+          </div>
         </div>
       </header>
 
