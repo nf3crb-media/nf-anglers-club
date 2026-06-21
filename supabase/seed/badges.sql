@@ -28,6 +28,13 @@ VALUES
     '👑',
     'Mencapai rank Legenda NF (Lv.15+).',
     'rank'
+  ),
+  (
+    'penjaga-muara',
+    'Penjaga Muara',
+    '🦐',
+    'Mengalahkan Boss Kakap Putih di Bab 4.',
+    'story'
   )
 ON CONFLICT (slug) DO UPDATE SET
   nama = EXCLUDED.nama,
@@ -57,5 +64,13 @@ SET badge_reward_id = b.id
 FROM badge b, story_chapter c
 WHERE b.slug = 'raja-rawa'
   AND c.slug = 'bab-3-hutan-rawa'
+  AND sm.chapter_id = c.id
+  AND sm.is_boss = true;
+
+UPDATE story_mission sm
+SET badge_reward_id = b.id
+FROM badge b, story_chapter c
+WHERE b.slug = 'penjaga-muara'
+  AND c.slug = 'bab-4-pintu-muara'
   AND sm.chapter_id = c.id
   AND sm.is_boss = true;
