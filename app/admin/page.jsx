@@ -14,9 +14,10 @@ import {
 
 const TABS = [
   { id: "poin", label: "Tambah Poin" },
-  { id: "strike", label: "Verifikasi Strike" },
-  { id: "tangkapan", label: "Verifikasi Tangkapan" },
-  { id: "kode", label: "Generator Kode" },
+  { id: "strike", label: "Strike" },
+  { id: "tangkapan", label: "Tangkapan" },
+  { id: "hadiah", label: "Hadiah" },
+  { id: "kode", label: "Kode" },
 ];
 
 const inp = {
@@ -55,6 +56,53 @@ export default function AdminPage() {
   });
   const [generatedKodes, setGeneratedKodes] = useState([]);
   const [pendingTangkapan, setPendingTangkapan] = useState([]);
+  const [catalogRewards, setCatalogRewards] = useState([]);
+  const [pendingRedemptions, setPendingRedemptions] = useState([]);
+  const [editingRewardId, setEditingRewardId] = useState(null);
+  const [rewardForm, setRewardForm] = useState({
+    nama: "",
+    slug: "",
+    deskripsi: "",
+    icon: "🎁",
+    cost_poin: "",
+    stock: "",
+    highlight: "",
+    starts_at: "",
+    ends_at: "",
+    sort_order: "0",
+    aktif: true,
+  });
+
+  const emptyRewardForm = () => ({
+    nama: "",
+    slug: "",
+    deskripsi: "",
+    icon: "🎁",
+    cost_poin: "",
+    stock: "",
+    highlight: "",
+    starts_at: "",
+    ends_at: "",
+    sort_order: "0",
+    aktif: true,
+  });
+
+  const toLocalDatetime = (iso) => {
+    if (!iso) return "";
+    const d = new Date(iso);
+    if (Number.isNaN(d.getTime())) return "";
+    const pad = (n) => String(n).padStart(2, "0");
+    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+  };
+
+  const loadRewardsAdmin = useCallback(async () => {
+    const res = await adminFetch("/api/admin/rewards");
+    const data = await res.json();
+    if (data.ok) {
+      setCatalogRewards(data.rewards || []);
+      setPendingRedemptions(data.pending_redemptions || []);
+    }
+  }, []);
 
   const loadOverview = useCallback(async () => {
     const res = await adminFetch("/api/admin/overview");
@@ -90,7 +138,8 @@ export default function AdminPage() {
     if (!authed) return;
     loadOverview();
     loadPendingTangkapan();
-  }, [authed, loadOverview, loadPendingTangkapan]);
+    loadRewardsAdmin();
+  }, [authed, loadOverview, loadPendingTangkapan, loadRewardsAdmin]);
 
   const login = async (e) => {
     e.preventDefault();
@@ -213,6 +262,108 @@ export default function AdminPage() {
       } else {
         setMsg(data.msg || "Gagal generate.");
       }
+    } catch {
+      setMsg("Koneksi gagal.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const saveReward = async (e) => {
+    e.preventDefault();
+    setLoading(true);
+    setMsg("");
+    try {
+      const payload = {
+        ...rewardForm,
+        cost_poin: Number(rewardForm.cost_poin),
+        stock: rewardForm.stock === "" ? null : Number(rewardForm.stock),
+        sort_order: Number(rewardForm.sort_order) || 0,
+        starts_at: rewardForm.starts_at || null,
+        ends_at: rewardForm.ends_at || null,
+      };
+
+      const res = editingRewardId
+        ? await adminFetch("/api/admin/rewards", {
+            method: "PATCH",
+            body: JSON.stringify({ id: editingRewardId, ...payload }),
+          })
+        : await adminFetch("/api/admin/rewards", {
+            method: "POST",
+            body: JSON.stringify(payload),
+          });
+
+      const data = await res.json();
+      if (data.ok) {
+        setMsg(editingRewardId ? "Hadiah diperbarui." : "Hadiah ditambahkan.");
+        setEditingRewardId(null);
+        setRewardForm(emptyRewardForm());
+        loadRewardsAdmin();
+      } else {
+        setMsg(data.msg || "Gagal menyimpan hadiah.");
+      }
+    } catch {
+      setMsg("Koneksi gagal.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const editReward = (r) => {
+    setEditingRewardId(r.id);
+    setRewardForm({
+      nama: r.nama || "",
+      slug: r.slug || "",
+      deskripsi: r.deskripsi || "",
+      icon: r.icon || "🎁",
+      cost_poin: String(r.cost_poin ?? ""),
+      stock: r.stock == null ? "" : String(r.stock),
+      highlight: r.highlight || "",
+      starts_at: toLocalDatetime(r.starts_at),
+      ends_at: toLocalDatetime(r.ends_at),
+      sort_order: String(r.sort_order ?? 0),
+      aktif: r.aktif !== false,
+    });
+    setTab("hadiah");
+    setMsg("");
+  };
+
+  const removeReward = async (id, hard = false) => {
+    if (!confirm(hard ? "Hapus permanen hadiah ini?" : "Nonaktifkan hadiah ini?")) return;
+    setLoading(true);
+    setMsg("");
+    try {
+      const res = await adminFetch(
+        `/api/admin/rewards?id=${encodeURIComponent(id)}${hard ? "&hard=1" : ""}`,
+        { method: "DELETE" }
+      );
+      const data = await res.json();
+      setMsg(data.msg || (data.ok ? "Berhasil." : "Gagal."));
+      if (data.ok) {
+        if (editingRewardId === id) {
+          setEditingRewardId(null);
+          setRewardForm(emptyRewardForm());
+        }
+        loadRewardsAdmin();
+      }
+    } catch {
+      setMsg("Koneksi gagal.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const fulfillRedemption = async (redemptionId) => {
+    setLoading(true);
+    setMsg("");
+    try {
+      const res = await adminFetch("/api/admin/rewards", {
+        method: "PATCH",
+        body: JSON.stringify({ action: "fulfill_redemption", redemption_id: redemptionId }),
+      });
+      const data = await res.json();
+      setMsg(data.msg || (data.ok ? "Penukaran selesai." : "Gagal."));
+      if (data.ok) loadRewardsAdmin();
     } catch {
       setMsg("Koneksi gagal.");
     } finally {
@@ -687,6 +838,253 @@ export default function AdminPage() {
               );
             })
           )}
+        </div>
+      )}
+
+      {tab === "hadiah" && (
+        <div>
+          {pendingRedemptions.length > 0 && (
+            <div style={{ marginBottom: 20 }}>
+              <div style={{ fontSize: 12, color: C.fog, marginBottom: 8 }}>
+                Penukaran menunggu ({pendingRedemptions.length})
+              </div>
+              <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                {pendingRedemptions.map((rd) => (
+                  <div
+                    key={rd.id}
+                    style={{
+                      padding: 12,
+                      borderRadius: 12,
+                      background: C.deep2,
+                      border: `1px solid ${C.amber}55`,
+                    }}
+                  >
+                    <div style={{ fontWeight: 700, fontSize: 13 }}>
+                      {rd.reward?.icon} {rd.reward?.nama}
+                    </div>
+                    <div style={{ fontSize: 11, color: C.fog, marginTop: 4 }}>
+                      {rd.member?.nama} · {rd.member?.wa_number} · {rd.cost_poin} poin
+                    </div>
+                    <button
+                      type="button"
+                      disabled={loading}
+                      onClick={() => fulfillRedemption(rd.id)}
+                      style={{
+                        marginTop: 10,
+                        width: "100%",
+                        padding: 10,
+                        borderRadius: 8,
+                        border: "none",
+                        background: C.glow,
+                        color: C.deep,
+                        fontWeight: 800,
+                        fontSize: 12,
+                        cursor: "pointer",
+                      }}
+                    >
+                      ✓ Tandai selesai / sudah dikirim
+                    </button>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          <div style={{ fontSize: 12, color: C.fog, marginBottom: 8 }}>
+            {editingRewardId ? "Edit hadiah" : "Tambah hadiah baru"}
+          </div>
+          <form onSubmit={saveReward}>
+            <input
+              style={inp}
+              placeholder="Nama hadiah *"
+              value={rewardForm.nama}
+              onChange={(e) => setRewardForm((f) => ({ ...f, nama: e.target.value }))}
+              required
+            />
+            <input
+              style={inp}
+              placeholder="Slug (opsional, auto dari nama)"
+              value={rewardForm.slug}
+              onChange={(e) => setRewardForm((f) => ({ ...f, slug: e.target.value }))}
+            />
+            <input
+              style={inp}
+              placeholder="Deskripsi"
+              value={rewardForm.deskripsi}
+              onChange={(e) => setRewardForm((f) => ({ ...f, deskripsi: e.target.value }))}
+            />
+            <div style={{ display: "flex", gap: 8 }}>
+              <input
+                style={{ ...inp, flex: "0 0 72px", marginBottom: 8 }}
+                placeholder="🎁"
+                value={rewardForm.icon}
+                onChange={(e) => setRewardForm((f) => ({ ...f, icon: e.target.value }))}
+              />
+              <input
+                style={{ ...inp, flex: 1, marginBottom: 8 }}
+                type="number"
+                min={1}
+                placeholder="Biaya poin *"
+                value={rewardForm.cost_poin}
+                onChange={(e) => setRewardForm((f) => ({ ...f, cost_poin: e.target.value }))}
+                required
+              />
+            </div>
+            <input
+              style={inp}
+              placeholder="Highlight / tag promo (mis. Promo Ramadan)"
+              value={rewardForm.highlight}
+              onChange={(e) => setRewardForm((f) => ({ ...f, highlight: e.target.value }))}
+            />
+            <div style={{ display: "flex", gap: 8 }}>
+              <input
+                style={{ ...inp, flex: 1, marginBottom: 8 }}
+                type="datetime-local"
+                value={rewardForm.starts_at}
+                onChange={(e) => setRewardForm((f) => ({ ...f, starts_at: e.target.value }))}
+              />
+              <input
+                style={{ ...inp, flex: 1, marginBottom: 8 }}
+                type="datetime-local"
+                value={rewardForm.ends_at}
+                onChange={(e) => setRewardForm((f) => ({ ...f, ends_at: e.target.value }))}
+              />
+            </div>
+            <p style={{ fontSize: 10, color: C.fog, margin: "-4px 0 8px" }}>
+              Jadwal: mulai (kiri) · berakhir (kanan). Kosongkan = selalu tampil.
+            </p>
+            <div style={{ display: "flex", gap: 8 }}>
+              <input
+                style={{ ...inp, flex: 1, marginBottom: 8 }}
+                type="number"
+                min={0}
+                placeholder="Stok (kosong = unlimited)"
+                value={rewardForm.stock}
+                onChange={(e) => setRewardForm((f) => ({ ...f, stock: e.target.value }))}
+              />
+              <input
+                style={{ ...inp, flex: 1, marginBottom: 8 }}
+                type="number"
+                placeholder="Urutan tampil"
+                value={rewardForm.sort_order}
+                onChange={(e) => setRewardForm((f) => ({ ...f, sort_order: e.target.value }))}
+              />
+            </div>
+            <label style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 12, color: C.fog, marginBottom: 12 }}>
+              <input
+                type="checkbox"
+                checked={rewardForm.aktif}
+                onChange={(e) => setRewardForm((f) => ({ ...f, aktif: e.target.checked }))}
+              />
+              Aktif (tampil di profil member)
+            </label>
+            <div style={{ display: "flex", gap: 8 }}>
+              <button
+                type="submit"
+                disabled={loading}
+                style={{
+                  flex: 1,
+                  padding: 12,
+                  borderRadius: 10,
+                  border: "none",
+                  background: C.glow,
+                  color: C.deep,
+                  fontWeight: 800,
+                  cursor: loading ? "wait" : "pointer",
+                }}
+              >
+                {loading ? "Menyimpan..." : editingRewardId ? "Simpan perubahan" : "Tambah hadiah"}
+              </button>
+              {editingRewardId && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setEditingRewardId(null);
+                    setRewardForm(emptyRewardForm());
+                  }}
+                  style={{
+                    padding: "12px 14px",
+                    borderRadius: 10,
+                    border: `1px solid ${C.line}`,
+                    background: "transparent",
+                    color: C.fog,
+                    fontWeight: 700,
+                    cursor: "pointer",
+                  }}
+                >
+                  Batal
+                </button>
+              )}
+            </div>
+          </form>
+
+          <div style={{ marginTop: 20 }}>
+            <div style={{ fontSize: 12, color: C.fog, marginBottom: 8 }}>
+              Katalog hadiah ({catalogRewards.length})
+            </div>
+            <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+              {catalogRewards.map((r) => (
+                <div
+                  key={r.id}
+                  style={{
+                    padding: 12,
+                    borderRadius: 12,
+                    background: C.deep2,
+                    border: `1px solid ${r.aktif ? C.line : C.fog}`,
+                    opacity: r.aktif ? 1 : 0.55,
+                  }}
+                >
+                  <div style={{ display: "flex", justifyContent: "space-between", gap: 8 }}>
+                    <div>
+                      <div style={{ fontWeight: 700, fontSize: 13 }}>
+                        {r.icon} {r.nama}
+                      </div>
+                      <div style={{ fontSize: 11, color: C.glow, marginTop: 2 }}>
+                        {r.cost_poin.toLocaleString("id-ID")} poin · {r.schedule_label}
+                      </div>
+                      {r.highlight && (
+                        <div style={{ fontSize: 10, color: C.amber, marginTop: 2 }}>
+                          ✨ {r.highlight}
+                        </div>
+                      )}
+                    </div>
+                    <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+                      <button
+                        type="button"
+                        onClick={() => editReward(r)}
+                        style={{
+                          padding: "4px 8px",
+                          borderRadius: 6,
+                          border: `1px solid ${C.line}`,
+                          background: "transparent",
+                          color: C.glow2,
+                          fontSize: 10,
+                          cursor: "pointer",
+                        }}
+                      >
+                        Edit
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => removeReward(r.id, false)}
+                        style={{
+                          padding: "4px 8px",
+                          borderRadius: 6,
+                          border: `1px solid ${C.line}`,
+                          background: "transparent",
+                          color: C.fog,
+                          fontSize: 10,
+                          cursor: "pointer",
+                        }}
+                      >
+                        Off
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
         </div>
       )}
 

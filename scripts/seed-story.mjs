@@ -92,8 +92,11 @@ const { data: rewards } = await supabase
 
 if (!rewards?.length) {
   console.log("\n✗ reward_catalog kosong — jalankan:");
-  console.log("  supabase/migrations/005_rewards.sql");
   console.log("  supabase/seed/rewards.sql");
 } else {
   console.log(`\n✓ ${rewards.length} hadiah tukar poin aktif.`);
+  const sample = rewards[0];
+  if (sample && !("highlight" in sample)) {
+    console.log("  Tip: jalankan 006_reward_schedule.sql untuk jadwal promo.");
+  }
 }

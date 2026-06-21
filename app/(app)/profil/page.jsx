@@ -650,9 +650,19 @@ export default function ProfilPage() {
               <span style={{ fontSize: 24 }}>{r.icon}</span>
               <div style={{ flex: 1 }}>
                 <div style={{ fontSize: 13, fontWeight: 700 }}>{r.nama}</div>
+                {r.highlight && (
+                  <div style={{ fontSize: 10, color: C.amber, marginTop: 2 }}>
+                    ✨ {r.highlight}
+                  </div>
+                )}
                 <div style={{ fontSize: 11, color: C.glow }}>
                   ⚡ {r.cost_poin.toLocaleString("id-ID")} poin
                 </div>
+                {r.schedule_label && r.schedule_label !== "Aktif" && (
+                  <div style={{ fontSize: 10, color: C.fog, marginTop: 2 }}>
+                    {r.schedule_label}
+                  </div>
+                )}
                 {r.stock != null && (
                   <div style={{ fontSize: 10, color: C.fog, marginTop: 2 }}>
                     Stok: {Math.max(0, r.stock)}

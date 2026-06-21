@@ -4,6 +4,7 @@ import {
   getMemberRedemptions,
   listActiveRewards,
 } from "@/lib/services/reward";
+import { rewardScheduleLabel } from "@/lib/reward-utils";
 
 export const dynamic = "force-dynamic";
 
@@ -26,7 +27,10 @@ export async function GET() {
 
     return Response.json({
       ok: true,
-      rewards,
+      rewards: rewards.map((r) => ({
+        ...r,
+        schedule_label: rewardScheduleLabel(r),
+      })),
       redemptions,
       total_poin,
     });

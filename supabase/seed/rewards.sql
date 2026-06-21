@@ -1,5 +1,4 @@
 -- Hadiah tukar poin — aman di-run langsung di SQL Editor (DDL + seed)
--- Setara: 005_rewards.sql + data hadiah
 
 CREATE TABLE IF NOT EXISTS reward_catalog (
   id          uuid PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -9,8 +8,13 @@ CREATE TABLE IF NOT EXISTS reward_catalog (
   icon        text NOT NULL DEFAULT '🎁',
   cost_poin   int NOT NULL CHECK (cost_poin > 0),
   stock       int,
+  highlight   text,
+  starts_at   timestamptz,
+  ends_at     timestamptz,
+  sort_order  int NOT NULL DEFAULT 0,
   aktif       boolean DEFAULT true,
-  dibuat_at   timestamptz DEFAULT now()
+  dibuat_at   timestamptz DEFAULT now(),
+  updated_at  timestamptz DEFAULT now()
 );
 
 CREATE TABLE IF NOT EXISTS reward_redemption (
@@ -39,7 +43,13 @@ DROP POLICY IF EXISTS "redemption milik sendiri" ON reward_redemption;
 CREATE POLICY "redemption milik sendiri"
   ON reward_redemption FOR SELECT USING (auth.uid() = member_id);
 
-INSERT INTO reward_catalog (slug, nama, deskripsi, icon, cost_poin, stock, aktif)
+ALTER TABLE reward_catalog ADD COLUMN IF NOT EXISTS highlight text;
+ALTER TABLE reward_catalog ADD COLUMN IF NOT EXISTS starts_at timestamptz;
+ALTER TABLE reward_catalog ADD COLUMN IF NOT EXISTS ends_at timestamptz;
+ALTER TABLE reward_catalog ADD COLUMN IF NOT EXISTS sort_order int NOT NULL DEFAULT 0;
+ALTER TABLE reward_catalog ADD COLUMN IF NOT EXISTS updated_at timestamptz DEFAULT now();
+
+INSERT INTO reward_catalog (slug, nama, deskripsi, icon, cost_poin, stock, sort_order, aktif)
 VALUES
   (
     'diskon-essen-10',
@@ -74,4 +84,6 @@ ON CONFLICT (slug) DO UPDATE SET
   icon = EXCLUDED.icon,
   cost_poin = EXCLUDED.cost_poin,
   stock = EXCLUDED.stock,
-  aktif = EXCLUDED.aktif;
+  sort_order = EXCLUDED.sort_order,
+  aktif = EXCLUDED.aktif,
+  updated_at = now();
