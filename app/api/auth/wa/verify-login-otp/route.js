@@ -1,14 +1,20 @@
 import { createClient } from "@/lib/supabase/server";
 import { createServiceClient } from "@/lib/supabase-server";
 import { normalizeWa, verifyWaOtp } from "@/lib/services/wa-otp";
-import { createSessionForEmail } from "@/lib/services/wa-session";
+import {
+  createSessionForEmail,
+  resolveMemberAuthEmail,
+} from "@/lib/services/wa-session";
 
 export const dynamic = "force-dynamic";
 
 const ERR_MSG = {
   WA_INVALID: "Nomor WhatsApp tidak valid.",
   WA_NOT_REGISTERED: "Nomor WhatsApp belum terdaftar. Daftar dengan kode produk NF dulu.",
-  MEMBER_NO_EMAIL: "Akun belum punya email. Hubungi CS NF.",
+  MEMBER_NO_EMAIL:
+    "Akun Supabase belum punya email. Selesaikan daftar via tab Daftar, atau hubungi CS NF.",
+  AUTH_USER_MISSING:
+    "Akun lama belum terhubung ke login baru. Daftar ulang dengan kode NF, atau hubungi CS NF.",
   OTP_INVALID: "Kode OTP harus 6 digit.",
   OTP_NOT_SENT: "OTP belum dikirim. Minta kode baru.",
   OTP_EXPIRED: "OTP sudah kadaluarsa. Minta kode baru.",
@@ -40,15 +46,17 @@ export async function POST(req) {
       .eq("wa_number", waNorm)
       .maybeSingle();
 
-    if (!member?.email) {
+    if (!member) {
       return Response.json(
         { ok: false, code: "WA_NOT_REGISTERED", msg: ERR_MSG.WA_NOT_REGISTERED },
         { status: 404 }
       );
     }
 
+    const email = await resolveMemberAuthEmail(member);
+
     const authClient = createClient();
-    await createSessionForEmail(authClient, member.email);
+    await createSessionForEmail(authClient, email);
 
     await supabase
       .from("member")

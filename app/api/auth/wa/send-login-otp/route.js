@@ -6,7 +6,10 @@ export const dynamic = "force-dynamic";
 const ERR_MSG = {
   WA_INVALID: "Nomor WhatsApp tidak valid.",
   WA_NOT_REGISTERED: "Nomor WhatsApp belum terdaftar. Daftar dengan kode produk NF dulu.",
-  MEMBER_NO_EMAIL: "Akun belum punya email. Hubungi CS NF.",
+  AUTH_USER_MISSING:
+    "Akun lama belum terhubung ke login baru. Daftar ulang dengan kode NF, atau hubungi CS NF.",
+  MEMBER_NO_EMAIL:
+    "Akun Supabase belum punya email. Selesaikan daftar via tab Daftar, atau hubungi CS NF.",
   WA_OTP_RATE_LIMIT: "Terlalu banyak permintaan OTP. Coba lagi nanti.",
   WA_OTP_COOLDOWN: "Tunggu sebentar sebelum kirim ulang OTP.",
   FONNTE_NOT_CONFIGURED: "Layanan WhatsApp belum dikonfigurasi.",
