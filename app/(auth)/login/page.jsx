@@ -13,8 +13,9 @@ import { mapAuthError } from "@/lib/auth-errors";
 function LoginForm() {
   const router = useRouter();
   const params = useSearchParams();
-  const { member, loading } = useAuth();
+  const { member, loading, refresh } = useAuth();
   const [mode, setMode] = useState("signup");
+  const [returnMethod, setReturnMethod] = useState("wa");
   const [step, setStep] = useState("form");
   const [kode, setKode] = useState("");
   const [wa, setWa] = useState("");
@@ -37,7 +38,7 @@ function LoginForm() {
 
   if (!loading && member) return null;
 
-  const sendOtp = async () => {
+  const sendSignupOtp = async () => {
     const res = await fetch("/api/auth/wa/send-otp", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -46,6 +47,20 @@ function LoginForm() {
     const data = await res.json();
     if (!data.ok) {
       throw new Error(data.msg || "Gagal mengirim OTP WhatsApp.");
+    }
+    setResendIn(data.resend_in || 60);
+    return data;
+  };
+
+  const sendLoginOtp = async () => {
+    const res = await fetch("/api/auth/wa/send-login-otp", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ wa_number: wa }),
+    });
+    const data = await res.json();
+    if (!data.ok) {
+      throw new Error(data.msg || "Gagal mengirim OTP login.");
     }
     setResendIn(data.resend_in || 60);
     return data;
@@ -62,7 +77,12 @@ function LoginForm() {
       throw new Error(checkData.msg || "Kode tidak valid.");
     }
 
-    await sendOtp();
+    await sendSignupOtp();
+    setStep("otp");
+  };
+
+  const handleReturnWaForm = async () => {
+    await sendLoginOtp();
     setStep("otp");
   };
 
@@ -89,6 +109,22 @@ function LoginForm() {
     router.push(`/check-email?${q.toString()}`);
   };
 
+  const handleVerifyLoginOtp = async () => {
+    const res = await fetch("/api/auth/wa/verify-login-otp", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ wa_number: wa, otp }),
+      credentials: "include",
+    });
+    const data = await res.json();
+    if (!data.ok) {
+      throw new Error(data.msg || "OTP login tidak valid.");
+    }
+
+    await refresh();
+    router.replace("/beranda");
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setErr("");
@@ -97,8 +133,16 @@ function LoginForm() {
 
     try {
       if (mode === "return") {
-        await sendMagicLink({ email, mode: "return" });
-        router.push(`/check-email?${new URLSearchParams({ email }).toString()}`);
+        if (returnMethod === "email") {
+          await sendMagicLink({ email, mode: "return" });
+          router.push(`/check-email?${new URLSearchParams({ email }).toString()}`);
+          return;
+        }
+        if (step === "form") {
+          await handleReturnWaForm();
+          return;
+        }
+        await handleVerifyLoginOtp();
         return;
       }
 
@@ -120,7 +164,11 @@ function LoginForm() {
     setErr("");
     setSubmitting(true);
     try {
-      await sendOtp();
+      if (mode === "return") {
+        await sendLoginOtp();
+      } else {
+        await sendSignupOtp();
+      }
     } catch (ex) {
       setErr(ex.message || "Gagal kirim ulang OTP.");
     } finally {
@@ -128,12 +176,40 @@ function LoginForm() {
     }
   };
 
-  const resetSignup = () => {
+  const resetFlow = () => {
     setStep("form");
     setOtp("");
     setErr("");
     setResendIn(0);
   };
+
+  const subtitle =
+    mode === "signup" && step === "otp"
+      ? "Verifikasi WhatsApp lalu magic link email"
+      : mode === "return" && returnMethod === "wa" && step === "otp"
+        ? "Masuk langsung — tanpa email"
+        : mode === "return" && returnMethod === "wa"
+          ? "OTP WhatsApp via Fonnte — tanpa magic link"
+          : "Magic link ke email — tanpa password";
+
+  const submitLabel =
+    mode === "return"
+      ? returnMethod === "email"
+        ? "Kirim magic link ke email"
+        : step === "form"
+          ? "Kirim OTP login ke WhatsApp"
+          : "Masuk sekarang"
+      : step === "form"
+        ? "Kirim OTP ke WhatsApp"
+        : "Verifikasi & kirim magic link";
+
+  const showOtpStep = step === "otp" && (mode === "signup" || returnMethod === "wa");
+  const showWaInput =
+    (mode === "signup" && step === "form") ||
+    (mode === "return" && returnMethod === "wa" && step === "form");
+  const showEmailInput =
+    (mode === "signup" && step === "form") ||
+    (mode === "return" && returnMethod === "email");
 
   return (
     <div
@@ -151,11 +227,7 @@ function LoginForm() {
         <NFLogo size={36} />
         <div>
           <div style={{ fontWeight: 800, fontSize: 18 }}>Masuk Club</div>
-          <div style={{ fontSize: 12, color: C.fog }}>
-            {mode === "signup" && step === "otp"
-              ? "Verifikasi WhatsApp lalu magic link email"
-              : "Magic link ke email — tanpa password"}
-          </div>
+          <div style={{ fontSize: 12, color: C.fog }}>{subtitle}</div>
         </div>
       </div>
 
@@ -169,7 +241,8 @@ function LoginForm() {
             type="button"
             onClick={() => {
               setMode(t.id);
-              resetSignup();
+              resetFlow();
+              setReturnMethod("wa");
               setErr("");
             }}
             style={{
@@ -189,6 +262,37 @@ function LoginForm() {
         ))}
       </div>
 
+      {mode === "return" && step === "form" && (
+        <div style={{ display: "flex", gap: 8, marginBottom: 14 }}>
+          {[
+            { id: "wa", label: "📱 WhatsApp OTP" },
+            { id: "email", label: "✉️ Email" },
+          ].map((t) => (
+            <button
+              key={t.id}
+              type="button"
+              onClick={() => {
+                setReturnMethod(t.id);
+                setErr("");
+              }}
+              style={{
+                flex: 1,
+                padding: "8px 6px",
+                borderRadius: 8,
+                border: `1px solid ${returnMethod === t.id ? C.glow2 : C.line}`,
+                background: returnMethod === t.id ? "rgba(92,224,160,.08)" : C.deep2,
+                color: returnMethod === t.id ? C.glow2 : C.fog,
+                fontSize: 11,
+                fontWeight: 700,
+                cursor: "pointer",
+              }}
+            >
+              {t.label}
+            </button>
+          ))}
+        </div>
+      )}
+
       <form onSubmit={handleSubmit}>
         {mode === "signup" && step === "form" && (
           <>
@@ -199,17 +303,6 @@ function LoginForm() {
                 placeholder="NF-XXXX-XXXX"
                 value={kode}
                 onChange={(e) => setKode(e.target.value.toUpperCase())}
-                style={inputStyle}
-                required
-              />
-            </label>
-            <label style={{ ...labelStyle, marginTop: 14 }}>
-              Nomor WhatsApp
-              <input
-                type="tel"
-                placeholder="08xxxxxxxxxx"
-                value={wa}
-                onChange={(e) => setWa(e.target.value)}
                 style={inputStyle}
                 required
               />
@@ -228,11 +321,27 @@ function LoginForm() {
           </>
         )}
 
-        {mode === "signup" && step === "otp" && (
+        {showWaInput && (
+          <label style={{ ...labelStyle, marginTop: mode === "signup" ? 14 : 0 }}>
+            Nomor WhatsApp
+            <input
+              type="tel"
+              placeholder="08xxxxxxxxxx"
+              value={wa}
+              onChange={(e) => setWa(e.target.value)}
+              style={inputStyle}
+              required
+            />
+          </label>
+        )}
+
+        {showOtpStep && (
           <>
             <p style={{ fontSize: 13, color: C.fog, marginBottom: 14, lineHeight: 1.5 }}>
               Kode OTP dikirim ke WhatsApp <strong style={{ color: C.ink }}>{wa}</strong>.
-              Setelah verifikasi, magic link dikirim ke email.
+              {mode === "signup"
+                ? " Setelah verifikasi, magic link dikirim ke email."
+                : " Masukkan kode untuk langsung masuk."}
             </p>
             <label style={labelStyle}>
               Kode OTP WhatsApp
@@ -266,7 +375,7 @@ function LoginForm() {
             </button>
             <button
               type="button"
-              onClick={resetSignup}
+              onClick={resetFlow}
               style={{
                 display: "block",
                 marginTop: 8,
@@ -278,12 +387,12 @@ function LoginForm() {
                 padding: 0,
               }}
             >
-              ← Ubah nomor / data
+              ← Ubah nomor
             </button>
           </>
         )}
 
-        {(mode === "return" || (mode === "signup" && step === "form")) && (
+        {showEmailInput && (
           <label style={{ ...labelStyle, marginTop: mode === "signup" ? 14 : 0 }}>
             Email {mode === "signup" ? "(untuk login)" : ""}
             <input
@@ -295,10 +404,6 @@ function LoginForm() {
               required
             />
           </label>
-        )}
-
-        {mode === "signup" && step === "otp" && (
-          <input type="hidden" value={email} readOnly />
         )}
 
         {mode === "signup" && step === "form" && isSuperAdminEmail(email) && (
@@ -339,13 +444,7 @@ function LoginForm() {
             cursor: submitting ? "wait" : "pointer",
           }}
         >
-          {submitting
-            ? "Memproses..."
-            : mode === "return"
-              ? "Kirim magic link ke email"
-              : step === "form"
-                ? "Kirim OTP ke WhatsApp"
-                : "Verifikasi & kirim magic link"}
+          {submitting ? "Memproses..." : submitLabel}
         </button>
       </form>
 
@@ -354,7 +453,11 @@ function LoginForm() {
           ? step === "form"
             ? "Langkah 1: verifikasi WA via OTP Fonnte. Langkah 2: klik magic link di email."
             : "Masukkan OTP dari WhatsApp, lalu cek inbox untuk magic link login."
-          : "Masukkan email yang sudah terdaftar. Klik link di inbox untuk masuk."}
+          : returnMethod === "wa"
+            ? step === "form"
+              ? "Masuk pakai nomor WA yang sudah terdaftar — tanpa tunggu email."
+              : "OTP berlaku 10 menit. Setelah masuk, langsung ke Beranda."
+            : "Alternatif: magic link email (bisa kena rate limit Supabase)."}
       </p>
 
       <Link href="/" style={{ display: "block", marginTop: 16, textAlign: "center", color: C.glow2, fontSize: 12 }}>
