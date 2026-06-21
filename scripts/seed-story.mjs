@@ -51,6 +51,7 @@ const SEED_FILES = [
   "supabase/seed/story_chapter4.sql",
   "supabase/seed/story_chapter5.sql",
   "supabase/seed/story_chapter6.sql",
+  "supabase/seed/story_chapter7.sql",
 ];
 
 const { data: chapters, error } = await supabase
@@ -71,11 +72,11 @@ for (const ch of chapters || []) {
 }
 
 const existing = new Set((chapters || []).map((c) => c.chapter_number));
-const expected = [1, 2, 3, 4, 5, 6];
+const expected = [1, 2, 3, 4, 5, 6, 7];
 const missing = expected.filter((n) => !existing.has(n));
 
 if (missing.length === 0) {
-  console.log("\n✓ Semua bab 1–6 sudah di-seed.");
+  console.log("\n✓ Semua bab 1–7 sudah di-seed.");
 } else {
   console.log(`\n✗ Belum di-seed: Bab ${missing.join(", ")}`);
   console.log("\nJalankan di Supabase SQL Editor:");

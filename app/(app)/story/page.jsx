@@ -57,7 +57,7 @@ export default function StoryPage() {
     );
   }
 
-  const { chapter, missions = [], chapter_complete, timeline = [], story_chapter } = data;
+  const { chapter, missions = [], chapter_complete, campaign_complete, timeline = [], story_chapter } = data;
   const doneCount = missions.filter((m) => m.status === "completed").length;
 
   return (
@@ -111,6 +111,43 @@ export default function StoryPage() {
       )}
 
       {!chapter ? (
+        campaign_complete ? (
+          <div
+            style={{
+              background: "linear-gradient(135deg, rgba(200,255,60,.12), rgba(92,224,160,.08))",
+              border: `1px solid ${C.glow}`,
+              borderRadius: 16,
+              padding: 24,
+              textAlign: "center",
+            }}
+          >
+            <div style={{ fontSize: 48 }}>👑</div>
+            <div style={{ fontWeight: 800, fontSize: 18, marginTop: 8, color: C.glow }}>
+              Story Campaign Selesai!
+            </div>
+            <p style={{ fontSize: 13, color: C.ink, lineHeight: 1.6, marginTop: 10 }}>
+              Semua bab NF sudah kamu taklukkan — dari empang sampai micro.
+              Terus strike, lengkapi Fishdex, dan kejar gelar Legenda NF (Lv.15+).
+            </p>
+            <Link
+              href="/profil"
+              onClick={() => SFX.pop()}
+              style={{
+                display: "inline-block",
+                marginTop: 16,
+                background: C.glow,
+                color: C.deep,
+                fontWeight: 800,
+                fontSize: 13,
+                padding: "12px 20px",
+                borderRadius: 10,
+                textDecoration: "none",
+              }}
+            >
+              Lihat badge & progres →
+            </Link>
+          </div>
+        ) : (
         <div
           style={{
             background: C.deep2,
@@ -155,9 +192,16 @@ export default function StoryPage() {
                   <code style={{ color: C.glow2 }}>story_chapter6.sql</code>
                 </>
               )}
+              {Number(story_chapter) > 6 && (
+                <>
+                  {", "}
+                  <code style={{ color: C.glow2 }}>story_chapter7.sql</code>
+                </>
+              )}
             </>
           )}
         </div>
+        )
       ) : (
         <>
           <div
@@ -214,7 +258,24 @@ export default function StoryPage() {
             )}
           </div>
 
-          {chapter_complete && chapter.outro_story && (
+          {campaign_complete && chapter_complete && (
+            <div
+              style={{
+                background: "linear-gradient(135deg, rgba(200,255,60,.1), rgba(92,224,160,.06))",
+                border: `1px solid ${C.glow}`,
+                borderRadius: 12,
+                padding: 16,
+                marginBottom: 16,
+                fontSize: 13,
+                color: C.glow,
+                textAlign: "center",
+              }}
+            >
+              👑 Story Campaign NF selesai! {chapter.outro_story}
+            </div>
+          )}
+
+          {chapter_complete && !campaign_complete && chapter.outro_story && (
             <div
               style={{
                 background: "rgba(92,224,160,.08)",
