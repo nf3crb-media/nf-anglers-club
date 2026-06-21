@@ -9,12 +9,17 @@ import { useAuth } from "@/hooks/useAuth";
 function VerifyContent() {
   const router = useRouter();
   const params = useSearchParams();
-  const { member, loading } = useAuth();
+  const { member, loading, refresh } = useAuth();
   const bonus = params.get("bonus");
 
   useEffect(() => {
+    refresh();
+  }, [refresh]);
+
+  useEffect(() => {
     if (!loading && !member) {
-      router.replace("/login");
+      const t = setTimeout(() => router.replace("/login"), 1500);
+      return () => clearTimeout(t);
     }
   }, [member, loading, router]);
 
@@ -45,20 +50,19 @@ function VerifyContent() {
       }}
     >
       <NFLogo size={72} />
-      <h1
-        style={{
-          fontSize: 24,
-          fontWeight: 900,
-          marginTop: 20,
-          color: C.glow2,
-        }}
-      >
-        Kode terverifikasi! 🎣
+      <h1 style={{ fontSize: 24, fontWeight: 900, marginTop: 20, color: C.glow2 }}>
+        Selamat datang! 🎣
       </h1>
       <p style={{ color: C.fog, marginTop: 12, lineHeight: 1.7, fontSize: 14 }}>
-        Selamat datang, <b style={{ color: C.ink }}>{member.nama}</b>!
+        Halo, <b style={{ color: C.ink }}>{member.nama}</b>!
         <br />
-        Tier kamu: <b style={{ color: C.amber }}>{member.tier || "Bronze"}</b>
+        Tier: <b style={{ color: C.amber }}>{member.customer_tier || member.tier || "Bronze"}</b>
+        {member.is_admin && (
+          <>
+            <br />
+            <span style={{ color: C.amber }}>⭐ Super Admin NF aktif</span>
+          </>
+        )}
         {Number(bonus) > 0 && (
           <>
             <br />
@@ -91,10 +95,7 @@ export default function VerifyPage() {
   return (
     <Suspense
       fallback={
-        <div
-          className="min-h-screen flex items-center justify-center"
-          style={{ background: "#0a1419" }}
-        >
+        <div className="min-h-screen flex items-center justify-center" style={{ background: "#0a1419" }}>
           Memuat...
         </div>
       }

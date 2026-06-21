@@ -2,64 +2,122 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { STORAGE_KEYS } from "@/lib/constants";
-
-function readMember() {
-  if (typeof window === "undefined") return null;
-  try {
-    const raw = localStorage.getItem(STORAGE_KEYS.member);
-    return raw ? JSON.parse(raw) : null;
-  } catch {
-    return null;
-  }
-}
-
-function readWelcomed() {
-  if (typeof window === "undefined") return false;
-  return localStorage.getItem(STORAGE_KEYS.welcomed) === "1";
-}
+import { createClient } from "@/lib/supabase";
+import { getSiteUrl } from "@/lib/env";
 
 export function useAuth() {
   const router = useRouter();
+  const [user, setUser] = useState(null);
   const [member, setMember] = useState(null);
   const [loading, setLoading] = useState(true);
 
+  const loadMember = useCallback(async () => {
+    try {
+      const res = await fetch("/api/member/me");
+      const data = await res.json();
+      if (data.ok && data.member) {
+        setMember(data.member);
+        return data.member;
+      }
+      if (data.code === "SIGNUP_INCOMPLETE" || res.status === 403) {
+        setMember(null);
+      }
+      return null;
+    } catch {
+      setMember(null);
+      return null;
+    }
+  }, []);
+
+  const refresh = useCallback(async () => {
+    const supabase = createClient();
+    const {
+      data: { session },
+    } = await supabase.auth.getSession();
+    setUser(session?.user ?? null);
+    if (session?.user) {
+      await loadMember();
+    } else {
+      setMember(null);
+    }
+  }, [loadMember]);
+
   useEffect(() => {
-    setMember(readMember());
-    setLoading(false);
-  }, []);
+    const supabase = createClient();
 
-  const login = useCallback((memberData) => {
-    localStorage.setItem(STORAGE_KEYS.member, JSON.stringify(memberData));
-    setMember(memberData);
-  }, []);
+    refresh().finally(() => setLoading(false));
 
-  const logout = useCallback(() => {
-    localStorage.removeItem(STORAGE_KEYS.member);
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((_event, session) => {
+      setUser(session?.user ?? null);
+      if (session?.user) {
+        loadMember();
+      } else {
+        setMember(null);
+      }
+    });
+
+    return () => subscription.unsubscribe();
+  }, [loadMember, refresh]);
+
+  const logout = useCallback(async () => {
+    const supabase = createClient();
+    await supabase.auth.signOut();
+    setUser(null);
     setMember(null);
     router.push("/login");
   }, [router]);
 
-  const refresh = useCallback(() => {
-    setMember(readMember());
-  }, []);
+  /** @deprecated gunakan session Supabase — compat sementara */
+  const login = useCallback((_memberData) => {
+    loadMember();
+  }, [loadMember]);
 
-  return { member, loading, login, logout, refresh };
+  return { user, member, loading, logout, refresh, login };
 }
 
 export function useWelcome() {
-  const [welcomed, setWelcomed] = useState(readWelcomed);
-  const [loading, setLoading] = useState(false);
+  const [welcomed, setWelcomed] = useState(false);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    setWelcomed(readWelcomed());
+    if (typeof window === "undefined") return;
+    setWelcomed(localStorage.getItem("nf_welcomed") === "1");
     setLoading(false);
   }, []);
 
   const markWelcomed = useCallback(() => {
-    localStorage.setItem(STORAGE_KEYS.welcomed, "1");
+    localStorage.setItem("nf_welcomed", "1");
     setWelcomed(true);
   }, []);
 
   return { welcomed, markWelcomed, loading };
+}
+
+export async function sendMagicLink({ email, mode, kode, wa_number, nama }) {
+  const supabase = createClient();
+  const siteUrl =
+    typeof window !== "undefined"
+      ? window.location.origin
+      : getSiteUrl();
+
+  const options = {
+    emailRedirectTo: `${siteUrl}/auth/callback`,
+  };
+
+  if (mode === "signup") {
+    options.data = {
+      kode: kode?.toUpperCase?.()?.trim(),
+      wa_number,
+      nama: nama?.trim(),
+    };
+  }
+
+  const { error } = await supabase.auth.signInWithOtp({
+    email: email.trim().toLowerCase(),
+    options,
+  });
+
+  if (error) throw error;
 }

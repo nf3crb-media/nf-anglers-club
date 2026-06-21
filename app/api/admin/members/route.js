@@ -16,7 +16,7 @@ export async function GET(req) {
     const supabase = createServiceClient();
     let query = supabase
       .from("member")
-      .select("id, nama, wa_number, username, tier, poin_belanja, poin_aktivitas, total_poin")
+      .select("id, nama, wa_number, username, tier, customer_tier, poin_belanja, poin_aktivitas")
       .order("nama")
       .limit(20);
 

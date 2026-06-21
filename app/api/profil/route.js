@@ -1,17 +1,17 @@
+import { requireMember, mapMemberPublic } from "@/lib/session";
 import { createServiceClient } from "@/lib/supabase-server";
 
 export const dynamic = "force-dynamic";
 
-export async function GET(req) {
+export async function GET() {
   try {
-    const { searchParams } = new URL(req.url);
-    const member_id = searchParams.get("member_id");
-
-    if (!member_id) {
-      return Response.json({ ok: false, msg: "member_id wajib." }, { status: 400 });
+    const auth = await requireMember();
+    if (!auth.ok) {
+      return Response.json({ ok: false, msg: auth.msg }, { status: auth.status });
     }
 
     const supabase = createServiceClient();
+    const member_id = auth.member.id;
 
     const [{ data: member }, { data: poinLog }, { data: fishCards }] =
       await Promise.all([
@@ -30,13 +30,9 @@ export async function GET(req) {
           .order("dibuat_at", { ascending: false }),
       ]);
 
-    if (!member) {
-      return Response.json({ ok: false, msg: "Member tidak ditemukan." }, { status: 404 });
-    }
-
     return Response.json({
       ok: true,
-      member,
+      member: mapMemberPublic(member),
       poin_log: poinLog || [],
       fish_cards: fishCards || [],
     });

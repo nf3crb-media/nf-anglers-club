@@ -31,8 +31,7 @@ export default function JuaraPage() {
   });
 
   useEffect(() => {
-    const q = member?.id ? `?member_id=${member.id}` : "";
-    fetch(`/api/strike${q}`)
+    fetch("/api/strike")
       .then((r) => r.json())
       .then((data) => {
         setStrikes(data.ok && data.strikes?.length ? data.strikes : MOCK_STRIKES);
@@ -41,8 +40,7 @@ export default function JuaraPage() {
   }, [member?.id]);
 
   const reloadStrikes = () => {
-    const q = member?.id ? `?member_id=${member.id}` : "";
-    fetch(`/api/strike${q}`)
+    fetch("/api/strike")
       .then((r) => r.json())
       .then((data) => {
         setStrikes(data.ok && data.strikes?.length ? data.strikes : MOCK_STRIKES);
@@ -61,7 +59,7 @@ export default function JuaraPage() {
       const res = await fetch("/api/strike", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ member_id: member.id, ...form }),
+        body: JSON.stringify({ ...form }),
       });
       const data = await res.json();
       if (data.ok) {

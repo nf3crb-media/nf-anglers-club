@@ -1,0 +1,3 @@
+-- Super admin: nf3.crb@gmail.com mendapat is_admin + is_cs saat onboard (lib/services/onboard.js)
+-- Setelah login pertama, cek:
+-- SELECT id, email, nama, is_admin, is_cs FROM member WHERE email = 'nf3.crb@gmail.com';

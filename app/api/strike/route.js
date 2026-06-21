@@ -1,4 +1,5 @@
 import { createServiceClient } from "@/lib/supabase-server";
+import { requireMember } from "@/lib/session";
 import { timeAgo } from "@/lib/time";
 
 export const dynamic = "force-dynamic";
@@ -34,7 +35,10 @@ function mapStrike(row) {
 export async function GET(req) {
   try {
     const { searchParams } = new URL(req.url);
-    const member_id = searchParams.get("member_id");
+    const auth = await requireMember();
+    const sessionMemberId = auth.ok ? auth.member.id : null;
+    const queryMemberId = searchParams.get("member_id");
+    const member_id = sessionMemberId || queryMemberId;
 
     const supabase = createServiceClient();
     let query = supabase
@@ -66,9 +70,13 @@ export async function GET(req) {
 
 export async function POST(req) {
   try {
+    const auth = await requireMember();
+    if (!auth.ok) {
+      return Response.json({ ok: false, msg: auth.msg }, { status: auth.status });
+    }
+
     const body = await req.json();
     const {
-      member_id,
       disc,
       event_name,
       fish,
@@ -83,7 +91,7 @@ export async function POST(req) {
       foto_hadiah,
     } = body;
 
-    if (!member_id || !disc || !event_name || !fish || !place) {
+    if (!disc || !event_name || !fish || !place) {
       return Response.json(
         { ok: false, msg: "Data strike tidak lengkap." },
         { status: 400 }
@@ -94,7 +102,7 @@ export async function POST(req) {
     const { data, error } = await supabase
       .from("strike_juara")
       .insert({
-        member_id,
+        member_id: auth.member.id,
         disc,
         event_name,
         fish,

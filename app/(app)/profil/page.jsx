@@ -28,7 +28,7 @@ export default function ProfilPage() {
   useEffect(() => {
     if (!member?.id) return;
     setLoading(true);
-    fetch(`/api/profil?member_id=${member.id}`)
+    fetch("/api/profil")
       .then((r) => r.json())
       .then((data) => {
         if (data.ok) setProfile(data);
