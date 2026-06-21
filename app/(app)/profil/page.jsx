@@ -4,7 +4,6 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import SectionTitle from "@/components/ui/SectionTitle";
 import { C, DISC, RARITY } from "@/lib/constants";
-import { REWARDS } from "@/lib/mock-profile";
 import { fishEmoji } from "@/lib/feed-utils";
 import { timeAgo } from "@/lib/time";
 import {
@@ -18,11 +17,15 @@ export default function ProfilPage() {
   const { member, logout } = useAuth();
   const [profile, setProfile] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [rewards, setRewards] = useState([]);
+  const [redemptions, setRedemptions] = useState([]);
+  const [redeeming, setRedeeming] = useState(null);
+  const [redeemMsg, setRedeemMsg] = useState("");
 
-  useEffect(() => {
-    if (!member?.id) return;
+  const loadProfile = () => {
+    if (!member?.id) return Promise.resolve();
     setLoading(true);
-    fetch("/api/profil")
+    return fetch("/api/profil")
       .then((r) => r.json())
       .then((data) => {
         if (data.ok) setProfile(data);
@@ -30,6 +33,23 @@ export default function ProfilPage() {
       })
       .catch(() => setProfile(null))
       .finally(() => setLoading(false));
+  };
+
+  const loadRewards = () =>
+    fetch("/api/rewards")
+      .then((r) => r.json())
+      .then((data) => {
+        if (data.ok) {
+          setRewards(data.rewards || []);
+          setRedemptions(data.redemptions || []);
+        }
+      })
+      .catch(() => {});
+
+  useEffect(() => {
+    if (!member?.id) return;
+    loadProfile();
+    loadRewards();
   }, [member?.id]);
 
   if (!member) return null;
@@ -48,6 +68,30 @@ export default function ProfilPage() {
   const xpLog = profile?.xp_log || [];
   const badges = profile?.badges || [];
   const handle = m.username ? `@${m.username}` : member.wa_number || member.email;
+  const handleRedeem = async (reward) => {
+    if (totalPoin < reward.cost_poin || redeeming) return;
+    setRedeeming(reward.slug);
+    setRedeemMsg("");
+    SFX.tap();
+    try {
+      const res = await fetch("/api/rewards/redeem", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ reward_slug: reward.slug }),
+      });
+      const data = await res.json();
+      if (data.ok) {
+        setRedeemMsg(`✅ ${reward.nama} — menunggu konfirmasi CS.`);
+        await Promise.all([loadProfile(), loadRewards()]);
+      } else {
+        setRedeemMsg(data.msg || "Gagal menukar poin.");
+      }
+    } catch {
+      setRedeemMsg("Gagal menukar poin.");
+    } finally {
+      setRedeeming(null);
+    }
+  };
 
   const discIcon = (discId) =>
     DISC.find((d) => d.id === discId)?.icon || "🎣";
@@ -585,11 +629,13 @@ export default function ProfilPage() {
           gap: 10,
         }}
       >
-        {REWARDS.map((r) => {
-          const can = totalPoin >= r.cost;
+        {(rewards.length ? rewards : []).map((r) => {
+          const outOfStock = r.stock != null && r.stock <= 0;
+          const can =
+            totalPoin >= r.cost_poin && !outOfStock && redeeming !== r.slug;
           return (
             <div
-              key={r.name}
+              key={r.slug}
               style={{
                 display: "flex",
                 alignItems: "center",
@@ -598,19 +644,25 @@ export default function ProfilPage() {
                 border: `1px solid ${C.line}`,
                 borderRadius: 12,
                 padding: "12px 14px",
+                opacity: outOfStock ? 0.5 : 1,
               }}
             >
               <span style={{ fontSize: 24 }}>{r.icon}</span>
               <div style={{ flex: 1 }}>
-                <div style={{ fontSize: 13, fontWeight: 700 }}>{r.name}</div>
+                <div style={{ fontSize: 13, fontWeight: 700 }}>{r.nama}</div>
                 <div style={{ fontSize: 11, color: C.glow }}>
-                  ⚡ {r.cost.toLocaleString("id-ID")} poin
+                  ⚡ {r.cost_poin.toLocaleString("id-ID")} poin
                 </div>
+                {r.stock != null && (
+                  <div style={{ fontSize: 10, color: C.fog, marginTop: 2 }}>
+                    Stok: {Math.max(0, r.stock)}
+                  </div>
+                )}
               </div>
               <button
                 type="button"
                 disabled={!can}
-                onClick={() => can && SFX.tap()}
+                onClick={() => can && handleRedeem(r)}
                 style={{
                   padding: "8px 14px",
                   borderRadius: 9,
@@ -622,14 +674,48 @@ export default function ProfilPage() {
                   cursor: can ? "pointer" : "not-allowed",
                 }}
               >
-                {can ? "Tukar" : "Kurang"}
+                {outOfStock
+                  ? "Habis"
+                  : redeeming === r.slug
+                    ? "..."
+                    : totalPoin >= r.cost_poin
+                      ? "Tukar"
+                      : "Kurang"}
               </button>
             </div>
           );
         })}
       </div>
+      {redeemMsg && (
+        <p style={{ fontSize: 11, color: C.glow2, marginTop: 8, textAlign: "center" }}>
+          {redeemMsg}
+        </p>
+      )}
+      {redemptions.length > 0 && (
+        <div style={{ marginTop: 12 }}>
+          <div style={{ fontSize: 11, color: C.fog, marginBottom: 6 }}>
+            Penukaran terakhir
+          </div>
+          {redemptions.slice(0, 3).map((rd) => (
+            <div
+              key={rd.id}
+              style={{
+                fontSize: 11,
+                color: C.ink,
+                padding: "8px 0",
+                borderBottom: `1px solid ${C.line}`,
+              }}
+            >
+              {rd.reward?.icon} {rd.reward?.nama} —{" "}
+              <span style={{ color: rd.status === "pending" ? C.amber : C.glow2 }}>
+                {rd.status === "pending" ? "Menunggu CS" : rd.status}
+              </span>
+            </div>
+          ))}
+        </div>
+      )}
       <p style={{ fontSize: 11, color: C.fog, marginTop: 8, textAlign: "center" }}>
-        Tukar poin via CS — fitur otomatis Fase 4
+        CS NF akan konfirmasi penukaran via WhatsApp
       </p>
 
       <button

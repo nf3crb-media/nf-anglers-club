@@ -149,6 +149,12 @@ export default function StoryPage() {
                   <code style={{ color: C.glow2 }}>story_chapter5.sql</code>
                 </>
               )}
+              {Number(story_chapter) > 5 && (
+                <>
+                  {", "}
+                  <code style={{ color: C.glow2 }}>story_chapter6.sql</code>
+                </>
+              )}
             </>
           )}
         </div>
