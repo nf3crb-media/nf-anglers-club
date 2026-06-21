@@ -3,7 +3,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase";
-import { getSiteUrl } from "@/lib/env";
 import { mapAuthError } from "@/lib/auth-errors";
 
 export function useAuth() {
@@ -104,27 +103,14 @@ export function useWelcome() {
 }
 
 export async function sendMagicLink({ email, mode, kode, wa_number, nama }) {
-  const supabase = createClient();
-  const siteUrl = getSiteUrl();
-
-  const options = {
-    emailRedirectTo: `${siteUrl}/auth/callback`,
-  };
-
-  if (mode === "signup") {
-    options.data = {
-      kode: kode?.toUpperCase?.()?.trim(),
-      wa_number,
-      nama: nama?.trim(),
-    };
-  }
-
-  const { error } = await supabase.auth.signInWithOtp({
-    email: email.trim().toLowerCase(),
-    options,
+  const res = await fetch("/api/auth/send-magic-link", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ email, mode, kode, wa_number, nama }),
   });
 
-  if (error) {
-    throw new Error(mapAuthError(error));
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok || !data.ok) {
+    throw new Error(data.msg || mapAuthError({ message: "Gagal mengirim magic link." }));
   }
 }
