@@ -5,7 +5,6 @@ import SectionTitle from "@/components/ui/SectionTitle";
 import StrikeCard from "@/components/feed/StrikeCard";
 import LegendaBoard from "@/components/game/LegendaBoard";
 import { C, DISC, NF_BAITS } from "@/lib/constants";
-import { MOCK_STRIKES } from "@/lib/mock-juara";
 import { SFX, haptic } from "@/lib/sound";
 import { useAuth } from "@/hooks/useAuth";
 
@@ -34,18 +33,18 @@ export default function JuaraPage() {
     fetch("/api/strike")
       .then((r) => r.json())
       .then((data) => {
-        setStrikes(data.ok && data.strikes?.length ? data.strikes : MOCK_STRIKES);
+        setStrikes(data.ok && data.strikes?.length ? data.strikes : []);
       })
-      .catch(() => setStrikes(MOCK_STRIKES));
+      .catch(() => setStrikes([]));
   }, [member?.id]);
 
   const reloadStrikes = () => {
     fetch("/api/strike")
       .then((r) => r.json())
       .then((data) => {
-        setStrikes(data.ok && data.strikes?.length ? data.strikes : MOCK_STRIKES);
+        setStrikes(data.ok && data.strikes?.length ? data.strikes : []);
       })
-      .catch(() => setStrikes(MOCK_STRIKES));
+      .catch(() => setStrikes([]));
   };
 
   const submit = async (e) => {

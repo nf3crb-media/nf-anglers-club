@@ -8,6 +8,7 @@ import { C } from "@/lib/constants";
 import { primeAudio } from "@/lib/sound";
 import { isSuperAdminEmail } from "@/lib/env";
 import { sendMagicLink, useAuth } from "@/hooks/useAuth";
+import { mapAuthError } from "@/lib/auth-errors";
 
 function LoginForm() {
   const router = useRouter();
@@ -108,7 +109,7 @@ function LoginForm() {
 
       await handleVerifyOtpAndEmail();
     } catch (ex) {
-      setErr(ex.message || "Gagal memproses pendaftaran.");
+      setErr(mapAuthError(ex));
     } finally {
       setSubmitting(false);
     }

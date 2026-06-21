@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase";
 import { getSiteUrl } from "@/lib/env";
+import { mapAuthError } from "@/lib/auth-errors";
 
 export function useAuth() {
   const router = useRouter();
@@ -126,5 +127,7 @@ export async function sendMagicLink({ email, mode, kode, wa_number, nama }) {
     options,
   });
 
-  if (error) throw error;
+  if (error) {
+    throw new Error(mapAuthError(error));
+  }
 }

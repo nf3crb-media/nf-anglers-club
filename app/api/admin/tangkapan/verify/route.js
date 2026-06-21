@@ -1,11 +1,11 @@
 import { createServiceClient } from "@/lib/supabase-server";
-import { verifyAdminRequest } from "@/lib/admin-auth";
+import { verifyAdminAccess } from "@/lib/admin-auth";
 import { finalizeCatchApproval, rejectCatch } from "@/lib/services/catch";
 
 export const dynamic = "force-dynamic";
 
 export async function POST(req) {
-  const auth = verifyAdminRequest(req);
+  const auth = await verifyAdminAccess(req);
   if (!auth.ok) {
     return Response.json({ ok: false, msg: auth.msg }, { status: auth.status });
   }

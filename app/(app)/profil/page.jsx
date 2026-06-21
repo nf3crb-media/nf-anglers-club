@@ -179,10 +179,18 @@ export default function ProfilPage() {
                 {game.angler_xp.toLocaleString("id-ID")} XP total
               </div>
             </div>
-            <div style={{ textAlign: "right", fontSize: 11, color: C.fog }}>
+            <Link
+              href="/story"
+              style={{
+                textAlign: "right",
+                fontSize: 11,
+                color: C.glow2,
+                textDecoration: "none",
+              }}
+            >
               Bab {game.story_chapter}
-              <div style={{ color: C.fog, fontSize: 10 }}>story soon</div>
-            </div>
+              <div style={{ color: C.fog, fontSize: 10 }}>Lihat misi →</div>
+            </Link>
           </div>
           <div style={{ marginTop: 14 }}>
             <div
@@ -237,6 +245,28 @@ export default function ProfilPage() {
       >
         🏆 Strike Juara & Legenda →
       </Link>
+
+      {(member?.is_admin || member?.is_cs) && (
+        <Link
+          href="/admin"
+          onClick={() => SFX.tap()}
+          style={{
+            display: "block",
+            marginTop: 10,
+            padding: 14,
+            borderRadius: 12,
+            border: `1px solid ${C.glow2}55`,
+            background: "rgba(92,224,160,.06)",
+            textDecoration: "none",
+            color: C.glow2,
+            fontWeight: 700,
+            fontSize: 13,
+            textAlign: "center",
+          }}
+        >
+          🛠️ CS Dashboard →
+        </Link>
+      )}
 
       <SectionTitle eyebrow="// RIWAYAT POIN" title="Dari mana poinmu" mt={22} />
       {loading ? (

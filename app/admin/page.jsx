@@ -9,6 +9,7 @@ import {
   clearAdminKey,
   getAdminKey,
   setAdminKey,
+  trySessionAdmin,
 } from "@/lib/admin-fetch";
 
 const TABS = [
@@ -32,6 +33,7 @@ const inp = {
 
 export default function AdminPage() {
   const [authed, setAuthed] = useState(false);
+  const [authMode, setAuthMode] = useState(null);
   const [secretInput, setSecretInput] = useState("");
   const [tab, setTab] = useState("poin");
   const [msg, setMsg] = useState("");
@@ -67,9 +69,21 @@ export default function AdminPage() {
   }, []);
 
   useEffect(() => {
-    if (getAdminKey()) {
-      setAuthed(true);
-    }
+    let cancelled = false;
+    (async () => {
+      if (getAdminKey()) {
+        if (!cancelled) setAuthed(true);
+        return;
+      }
+      const ok = await trySessionAdmin();
+      if (!cancelled && ok) {
+        setAuthed(true);
+        setAuthMode("session");
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   useEffect(() => {
@@ -86,6 +100,7 @@ export default function AdminPage() {
     const data = await res.json();
     if (data.ok) {
       setAuthed(true);
+      setAuthMode("secret");
       setOverview(data);
     } else {
       clearAdminKey();
@@ -208,6 +223,7 @@ export default function AdminPage() {
   const logout = () => {
     clearAdminKey();
     setAuthed(false);
+    setAuthMode(null);
     setSecretInput("");
   };
 
@@ -220,7 +236,9 @@ export default function AdminPage() {
             NF CS Dashboard
           </h1>
           <p style={{ fontSize: 13, color: C.fog, marginTop: 6 }}>
-            Masukkan kunci admin (NF_ADMIN_SECRET)
+            Login admin NF (sudah masuk app) otomatis masuk.
+            <br />
+            Atau masukkan kunci CS (NF_ADMIN_SECRET)
           </p>
         </div>
         <form onSubmit={login}>
@@ -274,6 +292,11 @@ export default function AdminPage() {
           <div>
             <div style={{ fontWeight: 800, fontSize: 16 }}>CS Dashboard</div>
             <div style={{ fontSize: 11, color: C.fog }}>NF Anglers Club</div>
+            {authMode === "session" && (
+              <div style={{ fontSize: 10, color: C.glow2, marginTop: 2 }}>
+                via login admin NF
+              </div>
+            )}
           </div>
         </div>
         <button

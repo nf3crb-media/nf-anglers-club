@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import SectionTitle from "@/components/ui/SectionTitle";
 import Pill from "@/components/ui/Pill";
 import { PostCardList } from "@/components/feed/PostCard";
@@ -10,7 +11,7 @@ import { useFeed } from "@/hooks/useFeed";
 
 export default function BerandaPage() {
   const [filter, setFilter] = useState("all");
-  const { posts, loading, source } = useFeed(filter);
+  const { posts, loading } = useFeed(filter);
 
   const setDisc = (id) => {
     SFX.tap();
@@ -44,13 +45,14 @@ export default function BerandaPage() {
           />
         ))}
       </div>
-      <button
-        type="button"
+      <Link
+        href="/fishcard"
         onClick={() => {
           SFX.tap();
           haptic(8);
         }}
         style={{
+          display: "block",
           width: "100%",
           marginTop: 12,
           padding: "13px",
@@ -61,23 +63,35 @@ export default function BerandaPage() {
           fontWeight: 700,
           cursor: "pointer",
           fontSize: 14,
+          textAlign: "center",
+          textDecoration: "none",
         }}
       >
-        📸 Post tangkapanmu — dapat poin aktivitas
-      </button>
+        📸 Buat Fish Card — tampil di feed komunitas
+      </Link>
       {loading ? (
         <p style={{ marginTop: 20, color: C.fog, fontSize: 13, textAlign: "center" }}>
           Memuat feed...
         </p>
+      ) : posts.length === 0 ? (
+        <p
+          style={{
+            marginTop: 20,
+            color: C.fog,
+            fontSize: 13,
+            textAlign: "center",
+            lineHeight: 1.6,
+            padding: "20px 12px",
+            border: `1px dashed ${C.line}`,
+            borderRadius: 12,
+          }}
+        >
+          Belum ada tangkapan tayang.
+          <br />
+          Jadilah yang pertama buat Fish Card! 🎣
+        </p>
       ) : (
-        <>
-          {source === "mock" && (
-            <p style={{ marginTop: 10, fontSize: 11, color: C.fog, textAlign: "center" }}>
-              Data contoh — jalankan seed feed di Supabase untuk data live
-            </p>
-          )}
-          <PostCardList posts={posts} />
-        </>
+        <PostCardList posts={posts} />
       )}
     </div>
   );

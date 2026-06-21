@@ -1,5 +1,5 @@
 import { createServiceClient } from "@/lib/supabase-server";
-import { verifyAdminRequest } from "@/lib/admin-auth";
+import { verifyAdminAccess } from "@/lib/admin-auth";
 import { timeAgo } from "@/lib/time";
 
 export const dynamic = "force-dynamic";
@@ -34,7 +34,7 @@ function mapPending(row) {
 }
 
 export async function GET(req) {
-  const auth = verifyAdminRequest(req);
+  const auth = await verifyAdminAccess(req);
   if (!auth.ok) {
     return Response.json({ ok: false, msg: auth.msg }, { status: auth.status });
   }

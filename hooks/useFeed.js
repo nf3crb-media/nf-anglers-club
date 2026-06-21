@@ -3,12 +3,10 @@
 import { useCallback, useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase";
 import { mapTangkapanRow } from "@/lib/feed-utils";
-import { MOCK_CAUGHT } from "@/lib/mock-feed";
 
 export function useFeed(discFilter = "all") {
   const [posts, setPosts] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [source, setSource] = useState("mock");
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -32,29 +30,14 @@ export function useFeed(discFilter = "all") {
 
       if (error) throw error;
 
-      if (data?.length) {
-        setPosts(
-          data.map((row) => {
-            const spotLabel = row.spot?.nama || row.spot?.kota;
-            return mapTangkapanRow(row, spotLabel);
-          })
-        );
-        setSource("supabase");
-      } else {
-        const mock =
-          discFilter === "all"
-            ? MOCK_CAUGHT
-            : MOCK_CAUGHT.filter((c) => c.disc === discFilter);
-        setPosts(mock);
-        setSource("mock");
-      }
+      setPosts(
+        (data || []).map((row) => {
+          const spotLabel = row.spot?.nama || row.spot?.kota;
+          return mapTangkapanRow(row, spotLabel);
+        })
+      );
     } catch {
-      const mock =
-        discFilter === "all"
-          ? MOCK_CAUGHT
-          : MOCK_CAUGHT.filter((c) => c.disc === discFilter);
-      setPosts(mock);
-      setSource("mock");
+      setPosts([]);
     } finally {
       setLoading(false);
     }
@@ -64,5 +47,5 @@ export function useFeed(discFilter = "all") {
     load();
   }, [load]);
 
-  return { posts, loading, source, refresh: load };
+  return { posts, loading, refresh: load };
 }
