@@ -131,6 +131,12 @@ export default function StoryPage() {
           {Number(story_chapter) > 1 && (
             <>
               {" "}dan <code style={{ color: C.glow2 }}>story_chapter2.sql</code>
+              {Number(story_chapter) > 2 && (
+                <>
+                  {", "}
+                  <code style={{ color: C.glow2 }}>story_chapter3.sql</code>
+                </>
+              )}
             </>
           )}
         </div>

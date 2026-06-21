@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import SectionTitle from "@/components/ui/SectionTitle";
 import { C, DISC, RARITY } from "@/lib/constants";
-import { BADGES, REWARDS } from "@/lib/mock-profile";
+import { REWARDS } from "@/lib/mock-profile";
 import { fishEmoji } from "@/lib/feed-utils";
 import { timeAgo } from "@/lib/time";
 import {
@@ -46,6 +46,7 @@ export default function ProfilPage() {
   const fishdex = profile?.fishdex || [];
   const dexStats = profile?.fishdex_stats || { owned: 0, total: 0 };
   const xpLog = profile?.xp_log || [];
+  const badges = profile?.badges || [];
   const handle = m.username ? `@${m.username}` : member.wa_number || member.email;
 
   const discIcon = (discId) =>
@@ -543,9 +544,14 @@ export default function ProfilPage() {
           flexWrap: "wrap",
         }}
       >
-        {BADGES.map((b) => (
+        {badges.length === 0 ? (
+          <p style={{ fontSize: 12, color: C.fog, marginTop: 12 }}>
+            Selesaikan misi story untuk membuka badge.
+          </p>
+        ) : (
+          badges.map((b) => (
           <div
-            key={b.name}
+            key={b.slug}
             style={{
               flex: "1 1 calc(50% - 5px)",
               display: "flex",
@@ -559,9 +565,15 @@ export default function ProfilPage() {
             }}
           >
             <span style={{ fontSize: 22 }}>{b.owned ? b.emoji : "🔒"}</span>
-            <span style={{ fontSize: 12, fontWeight: 700 }}>{b.name}</span>
+            <div>
+              <span style={{ fontSize: 12, fontWeight: 700, display: "block" }}>{b.nama}</span>
+              {b.owned && (
+                <span style={{ fontSize: 9, color: C.fog }}>{b.deskripsi}</span>
+              )}
+            </div>
           </div>
-        ))}
+          ))
+        )}
       </div>
 
       <SectionTitle eyebrow="// TUKAR POIN" title="Hadiah nyata" mt={22} />

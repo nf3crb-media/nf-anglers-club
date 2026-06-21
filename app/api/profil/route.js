@@ -2,6 +2,7 @@ import { requireMember, mapMemberPublic } from "@/lib/session";
 import { createServiceClient } from "@/lib/supabase-server";
 import { mapGameProgress } from "@/lib/game-progress";
 import { ensureGameProgress } from "@/lib/services/game-progress";
+import { getMemberBadges } from "@/lib/services/badge";
 
 export const dynamic = "force-dynamic";
 
@@ -24,6 +25,7 @@ export async function GET() {
       { data: xpLog },
       { data: fishdexRows },
       { data: allSpecies },
+      badges,
     ] = await Promise.all([
       supabase.from("member").select("*").eq("id", member_id).single(),
       supabase
@@ -55,6 +57,7 @@ export async function GET() {
         .select("id, slug, nama, habitat, base_rarity, is_boss_available, is_predator")
         .eq("aktif", true)
         .order("nama"),
+      getMemberBadges(supabase, member_id),
     ]);
 
     const dexMap = new Map(
@@ -86,6 +89,7 @@ export async function GET() {
         owned: ownedCount,
         total: fishdex.length,
       },
+      badges,
     });
   } catch (err) {
     console.error("[api/profil]", err);
