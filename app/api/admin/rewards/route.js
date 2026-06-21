@@ -6,6 +6,7 @@ import {
   fulfillRedemption,
   listAllRewards,
   listPendingRedemptions,
+  rejectRedemption,
   updateReward,
 } from "@/lib/services/reward";
 import { rewardScheduleLabel } from "@/lib/reward-utils";
@@ -81,6 +82,20 @@ export async function PATCH(req) {
         return Response.json({ ok: false, msg: result.msg }, { status: result.status });
       }
       return Response.json({ ok: true, msg: "Penukaran ditandai selesai." });
+    }
+
+    if (body.action === "reject_redemption") {
+      const result = await rejectRedemption(supabase, body.redemption_id, {
+        csId: auth.member_id || null,
+        note: body.note,
+      });
+      if (!result.ok) {
+        return Response.json({ ok: false, msg: result.msg }, { status: result.status });
+      }
+      return Response.json({
+        ok: true,
+        msg: `Penukaran ditolak. ${result.refunded} poin dikembalikan ke member.`,
+      });
     }
 
     const result = await updateReward(supabase, body.id, body);

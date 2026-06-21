@@ -718,7 +718,7 @@ export default function ProfilPage() {
             >
               {rd.reward?.icon} {rd.reward?.nama} —{" "}
               <span style={{ color: rd.status === "pending" ? C.amber : C.glow2 }}>
-                {rd.status === "pending" ? "Menunggu CS" : rd.status}
+              {rd.status === "pending" ? "Menunggu CS" : rd.status === "rejected" ? "Ditolak" : rd.status}
               </span>
             </div>
           ))}

@@ -371,6 +371,33 @@ export default function AdminPage() {
     }
   };
 
+  const rejectRedemption = async (redemptionId) => {
+    const note = window.prompt(
+      "Alasan penolakan (opsional):",
+      "Stok habis / tidak memenuhi syarat"
+    );
+    if (note === null) return;
+    setLoading(true);
+    setMsg("");
+    try {
+      const res = await adminFetch("/api/admin/rewards", {
+        method: "PATCH",
+        body: JSON.stringify({
+          action: "reject_redemption",
+          redemption_id: redemptionId,
+          note,
+        }),
+      });
+      const data = await res.json();
+      setMsg(data.msg || (data.ok ? "Penukaran ditolak." : "Gagal."));
+      if (data.ok) loadRewardsAdmin();
+    } catch {
+      setMsg("Koneksi gagal.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const logout = () => {
     clearAdminKey();
     setAuthed(false);
@@ -865,25 +892,44 @@ export default function AdminPage() {
                     <div style={{ fontSize: 11, color: C.fog, marginTop: 4 }}>
                       {rd.member?.nama} · {rd.member?.wa_number} · {rd.cost_poin} poin
                     </div>
-                    <button
-                      type="button"
-                      disabled={loading}
-                      onClick={() => fulfillRedemption(rd.id)}
-                      style={{
-                        marginTop: 10,
-                        width: "100%",
-                        padding: 10,
-                        borderRadius: 8,
-                        border: "none",
-                        background: C.glow,
-                        color: C.deep,
-                        fontWeight: 800,
-                        fontSize: 12,
-                        cursor: "pointer",
-                      }}
-                    >
-                      ✓ Tandai selesai / sudah dikirim
-                    </button>
+                    <div style={{ display: "flex", gap: 8, marginTop: 10 }}>
+                      <button
+                        type="button"
+                        disabled={loading}
+                        onClick={() => fulfillRedemption(rd.id)}
+                        style={{
+                          flex: 1,
+                          padding: 10,
+                          borderRadius: 8,
+                          border: "none",
+                          background: C.glow,
+                          color: C.deep,
+                          fontWeight: 800,
+                          fontSize: 12,
+                          cursor: "pointer",
+                        }}
+                      >
+                        ✓ Selesai
+                      </button>
+                      <button
+                        type="button"
+                        disabled={loading}
+                        onClick={() => rejectRedemption(rd.id)}
+                        style={{
+                          flex: 1,
+                          padding: 10,
+                          borderRadius: 8,
+                          border: `1px solid ${C.line}`,
+                          background: "transparent",
+                          color: C.fog,
+                          fontWeight: 700,
+                          fontSize: 12,
+                          cursor: "pointer",
+                        }}
+                      >
+                        ✕ Tolak + refund
+                      </button>
+                    </div>
                   </div>
                 ))}
               </div>
