@@ -12,27 +12,33 @@ export async function POST(req) {
     }
 
     const supabase = createServiceClient();
-    const { data, error } = await supabase
+    const { data: row, error } = await supabase
       .from("kode_unik")
       .select("kode, produk, status, batch")
       .eq("kode", kodeNorm)
-      .eq("status", "belum_dipakai")
       .maybeSingle();
 
     if (error) throw error;
 
-    if (!data) {
+    if (!row) {
       return Response.json({
         ok: false,
-        msg: "Kode tidak valid atau sudah dipakai.",
+        msg: "Kode tidak ditemukan. Cek penulisan (contoh: NF-SAMP-J21-A).",
+      });
+    }
+
+    if (row.status !== "belum_dipakai") {
+      return Response.json({
+        ok: false,
+        msg: "Kode sudah dipakai. Minta kode fresh ke admin atau jalankan seed kode_fresh_jun26.sql di Supabase.",
       });
     }
 
     return Response.json({
       ok: true,
-      kode: data.kode,
-      produk: data.produk,
-      batch: data.batch,
+      kode: row.kode,
+      produk: row.produk,
+      batch: row.batch,
     });
   } catch (err) {
     console.error("[api/kode/check]", err);

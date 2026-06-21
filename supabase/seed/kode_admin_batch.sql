@@ -1,5 +1,6 @@
 -- Kode daftar baru (jalankan di Supabase SQL Editor)
--- NF-TEST-0001 sudah terpakai? Pakai salah satu kode di bawah.
+-- PENTING: ON CONFLICT DO NOTHING = kode yang SUDAH ADA tidak di-reset.
+-- Kalau NF-SAMP-0001 status terpakai, pakai seed baru: kode_fresh_jun26.sql
 
 INSERT INTO kode_unik (kode, batch, produk, status)
 VALUES
