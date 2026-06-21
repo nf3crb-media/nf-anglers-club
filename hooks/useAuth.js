@@ -105,10 +105,7 @@ export function useWelcome() {
 
 export async function sendMagicLink({ email, mode, kode, wa_number, nama }) {
   const supabase = createClient();
-  const siteUrl =
-    typeof window !== "undefined"
-      ? window.location.origin
-      : getSiteUrl();
+  const siteUrl = getSiteUrl();
 
   const options = {
     emailRedirectTo: `${siteUrl}/auth/callback`,
