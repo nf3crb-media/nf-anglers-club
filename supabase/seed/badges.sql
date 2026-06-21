@@ -35,6 +35,13 @@ VALUES
     '🦐',
     'Mengalahkan Boss Kakap Putih di Bab 4.',
     'story'
+  ),
+  (
+    'pemburu-laut',
+    'Pemburu Laut',
+    '🦈',
+    'Mengalahkan Boss Barracuda di Bab 5.',
+    'story'
   )
 ON CONFLICT (slug) DO UPDATE SET
   nama = EXCLUDED.nama,
@@ -72,5 +79,13 @@ SET badge_reward_id = b.id
 FROM badge b, story_chapter c
 WHERE b.slug = 'penjaga-muara'
   AND c.slug = 'bab-4-pintu-muara'
+  AND sm.chapter_id = c.id
+  AND sm.is_boss = true;
+
+UPDATE story_mission sm
+SET badge_reward_id = b.id
+FROM badge b, story_chapter c
+WHERE b.slug = 'pemburu-laut'
+  AND c.slug = 'bab-5-gelombang-laut'
   AND sm.chapter_id = c.id
   AND sm.is_boss = true;
